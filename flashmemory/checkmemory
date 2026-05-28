@@ -1,0 +1,20 @@
+#include <Arduino.h>
+#include <SPIMemory.h>
+
+SPIFlash flash(5);
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+
+  if (flash.begin()) {
+    Serial.println("Chip found!");
+    Serial.print("Size: ");
+    Serial.print(flash.getCapacity());
+    Serial.println(" bytes");
+  } else {
+    Serial.println("NOT found - check wiring");
+  }
+}
+
+void loop() {}

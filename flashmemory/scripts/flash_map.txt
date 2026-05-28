@@ -1,0 +1,35 @@
+# Digibraille Flash Map
+# Format: filename:size:flash_address
+# Generated: 2026-05-26 20:53:30
+
+ai.mp3:4638:4096
+ai_failed.mp3:6222:8734
+ai_ready.mp3:7806:14956
+cancelled.mp3:5502:22762
+capital.mp3:5934:28264
+chichewa.mp3:5646:34198
+choose_language.mp3:7662:39844
+cleared.mp3:5502:47506
+deleted.mp3:6942:53008
+empty.mp3:5214:59950
+end_of_note.mp3:5646:65164
+english.mp3:6654:70810
+kept.mp3:11118:77464
+lang_instructions.mp3:16878:88582
+language.mp3:6942:105460
+loading.mp3:6798:112402
+new_note.mp3:8814:119200
+no_notes.mp3:7518:128014
+no_wifi.mp3:6222:135532
+no_wifi_ai.mp3:6222:141754
+note_saved.mp3:9390:147976
+nothing_typed.mp3:6222:157366
+number.mp3:6654:163588
+read_notes.mp3:8670:170242
+reading_note.mp3:7230:178912
+space.mp3:4782:186142
+storage_full.mp3:8382:190924
+title_saved.mp3:10830:199306
+undo.mp3:5214:210136
+undo_sentence.mp3:7662:215350
+write_title.mp3:5502:223012

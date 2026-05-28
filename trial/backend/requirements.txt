@@ -1,0 +1,16 @@
+fastapi==0.109.0
+uvicorn==0.27.0
+librosa==0.10.1
+pydub==0.25.1
+praat-parselmouth
+sqlite-utils==3.36
+python-multipart==0.0.6
+# backend/requirements.txt
+
+python-multipart
+soundfile
+scipy
+numpy
+noisereduce
+torch
+torchaudio
