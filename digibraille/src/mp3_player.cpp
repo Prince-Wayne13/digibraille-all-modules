@@ -14,7 +14,7 @@
 
 extern volatile bool audioFetchIdle;
 
-#define VRSS_API_KEY  "72f72678e3ac4477a3638b69ef893e2d"
+#define VRSS_API_KEY  "xxxxxtype it in"
 #define VRSS_HOST     "api.voicerss.org"
 #define VRSS_VOICE    "Mike"
 #define VRSS_LANG     "en-us"
