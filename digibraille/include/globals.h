@@ -3,18 +3,93 @@
 #include <LittleFS.h>
 #include <WiFi.h>
 
+#define OLED_SDA_PIN      21
+#define OLED_SCL_PIN      22
+
+#define AMP_DIN_PIN       25
+#define AMP_BCLK_PIN      16
+#define AMP_LRC_PIN       27
+
+#define SD_CS_PIN          5
+#define SD_SCK_PIN        14
+#define SD_MISO_PIN        4
+#define SD_MOSI_PIN       17
+
+#define i2c_Address    0x3C
+#define SCREEN_WIDTH   128
+#define SCREEN_HEIGHT  64
+#define OLED_RESET     -1
+
 // ─── BUTTONS ─────────────────────────────────────────────────
-#define BTN_SELECT    14
-#define BTN_BACK      27
-#define BTN_DOWN      13
-#define BTN_REREAD    12
-#define BTN_AISAVE     4
-#define BTN_DELETE     17
+#define BTN_BACK          13
+#define BTN_SELECT        34
+#define BTN_DOWN          35
+#define BTN_AISAVE        36
+#define BTN_DELETE        39
+#define BTN_REREAD        -1
 #define DEBOUNCE_MS  220
 
 // ─── BRAILLE DOTS ────────────────────────────────────────────
-extern const int DOT_PINS[6];
+static const int DOT_PINS[6] = {32, 33, 18, 19, 23, 26};
 #define DOT_DEBOUNCE_MS 15
+
+#define DEBUG_AUDIO_BUTTONS 1
+
+inline bool isValidPin(int pin) {
+  return pin >= 0;
+}
+
+inline bool buttonPressed(int pin) {
+  return isValidPin(pin) && digitalRead(pin) == LOW;
+}
+
+inline void logTs(const char* tag, const char* message) {
+  Serial.print('[');
+  Serial.print(millis());
+  Serial.print(F(" ms] "));
+  Serial.print(tag);
+  Serial.print(F(" "));
+  Serial.println(message);
+}
+
+inline void logTsValue(const char* tag, const char* message, const String& value) {
+  Serial.print('[');
+  Serial.print(millis());
+  Serial.print(F(" ms] "));
+  Serial.print(tag);
+  Serial.print(F(" "));
+  Serial.print(message);
+  Serial.println(value);
+}
+
+inline const char* buttonNameForPin(int pin) {
+  if (pin == BTN_BACK) return "BACK";
+  if (pin == BTN_SELECT) return "SELECT";
+  if (pin == BTN_DOWN) return "DOWN";
+  if (pin == BTN_REREAD) return "REREAD";
+  if (pin == BTN_AISAVE) return "AI_SAVE";
+  if (pin == BTN_DELETE) return "DELETE";
+  return "UNKNOWN";
+}
+
+inline void debugLogButtonTransitions(const char* context) {
+#if DEBUG_AUDIO_BUTTONS
+  const int pins[] = {BTN_BACK, BTN_SELECT, BTN_DOWN, BTN_REREAD, BTN_AISAVE, BTN_DELETE};
+  static bool prev[6] = {false, false, false, false, false, false};
+  for (int i = 0; i < 6; i++) {
+    bool now = buttonPressed(pins[i]);
+    if (now != prev[i]) {
+      prev[i] = now;
+      Serial.print('[');
+      Serial.print(millis());
+      Serial.print(F(" ms] BUTTON "));
+      Serial.print(buttonNameForPin(pins[i]));
+      Serial.print(now ? F(" DOWN ") : F(" UP "));
+      Serial.println(context);
+    }
+  }
+#endif
+}
 
 // ─── STORAGE PATHS ───────────────────────────────────────────
 #define MAX_NOTES      10
@@ -89,6 +164,7 @@ extern unsigned long lastAutosave;
 struct AudioFetchJob { char path[64]; char text[512]; };
 extern QueueHandle_t audioFetchQueue;
 extern volatile bool audioFetchIdle;
+extern bool sdReady;
 
 // ─── PHRASE TABLE ────────────────────────────────────────────
 struct Phrase { const char* name; const char* en; const char* ch; };

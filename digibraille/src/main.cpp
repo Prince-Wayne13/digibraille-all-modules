@@ -2,12 +2,12 @@
 //  DIGIBRAILLE v2 — WAYNE INC.
 //
 //  WIRING:
-//  OLED SDA → GPIO 21    OLED SCL → GPIO 22
-//  BTN_SELECT → GPIO 14   BTN_BACK   → GPIO 27
-//  BTN_DOWN   → GPIO 13   BTN_REREAD → GPIO 12
-//  BTN_AISAVE → GPIO 4    BTN_DELETE → GPIO 5
-//  SPEAKER    → GPIO 25 → PAM8403
-//  BRAILLE DOTS: {32,33,18,19,23,26} → GND
+//  BRAILLE DOTS 1..6 -> GPIO 32, 33, 18, 19, 23, 26
+//  BACK              -> GPIO 13 (internal pull-up)
+//  SELECT/DOWN/AI/DEL-> GPIO 34, 35, 36, 39 (external pull-ups)
+//  OLED SDA/SCL      -> GPIO 21, 22
+//  MAX98357A DIN/BCLK/LRC -> GPIO 25, 16, 27
+//  SD CS/SCK/MISO/MOSI    -> GPIO 5, 14, 4, 17
 //
 //  BEFORE FLASHING: fill in VRSS_API_KEY in mp3_player.cpp
 //
@@ -19,10 +19,13 @@
 // ============================================================
 
 #include <functional>
+#include <SPI.h>
+#include <SD.h>
 #include "globals.h"
 #include "esp_log.h"
 #include "sam_tts.h"
 #include "mp3_player.h"
+#include "offline_grammar.h"
 #include "storage.h"
 #include "display.h"
 #include "braille.h"
@@ -68,8 +71,7 @@ volatile bool  audioFetchIdle   = false;
 bool          wifiCachePending = false;
 wl_status_t   lastWifiStatus   = WL_DISCONNECTED;
 unsigned long lastWifiCheck    = 0;
-
-const int DOT_PINS[6] = {32, 33, 18, 19, 23, 26};
+bool          sdReady          = false;
 
 const char* menuEN[] = { "New note", "Read Notes", "Language" };
 const char* menuCH[] = { "Lemba latsopano", "Werenga malemba", "Chilankhulo" };
@@ -143,13 +145,17 @@ void setup() {
   Serial.println(F("\n\n══ DIGIBRAILLE v2 BOOT ══"));
 
   // ── Pins ─────────────────────────────────────────────────
-  pinMode(BTN_SELECT, INPUT_PULLUP); pinMode(BTN_BACK,   INPUT_PULLUP);
-  pinMode(BTN_DOWN,   INPUT_PULLUP); pinMode(BTN_REREAD, INPUT_PULLUP);
-  pinMode(BTN_AISAVE, INPUT_PULLUP); pinMode(BTN_DELETE, INPUT_PULLUP);
+  pinMode(BTN_BACK, INPUT_PULLUP);
+  pinMode(BTN_SELECT, INPUT);
+  pinMode(BTN_DOWN, INPUT);
+  pinMode(BTN_AISAVE, INPUT);
+  pinMode(BTN_DELETE, INPUT);
+  if (isValidPin(BTN_REREAD)) pinMode(BTN_REREAD, INPUT_PULLUP);
   for (int i = 0; i < 6; i++) pinMode(DOT_PINS[i], INPUT_PULLUP);
-  Serial.println(F("[PINS] OK"));
+  logTs("PINS", "OK");
 
   // ── OLED ─────────────────────────────────────────────────
+  Wire.begin(OLED_SDA_PIN, OLED_SCL_PIN);
   if (!display.begin(i2c_Address, true)) {
     Serial.println(F("[OLED] FATAL - cannot start"));
     while (true);
@@ -163,10 +169,10 @@ void setup() {
   // ── SAM ──────────────────────────────────────────────────
   samSetup();
   Serial.println(F("[SAM] OK"));
+  offlineGrammarSetup();
+  Serial.println(F("[GRAMMAR] Offline engine ready"));
   mp3Setup();
-  Serial.println(F("[MP3] DAC output ready"));
-  mp3Setup();
-  Serial.println(F("[MP3] OK"));
+  Serial.println(F("[MP3] I2S output ready"));
 
   // ── LittleFS ─────────────────────────────────────────────
   showStatus("DigiBraille v2", "Starting up...", "");
@@ -176,6 +182,14 @@ void setup() {
     while (true);
   }
   ensureFolders();
+
+  SPI.begin(SD_SCK_PIN, SD_MISO_PIN, SD_MOSI_PIN, SD_CS_PIN);
+  sdReady = SD.begin(SD_CS_PIN, SPI);
+  if (sdReady) {
+    logTs("SD", "Card mounted");
+  } else {
+    logTs("SD", "Card not mounted; LittleFS/SAM fallback active");
+  }
 
   // ── Filesystem info ────────────────────────────────────────
   Serial.println(F("\n── LittleFS Info ──────────────────"));
@@ -278,6 +292,7 @@ void setup() {
 //  LOOP
 // ============================================================
 void loop() {
+  debugLogButtonTransitions("loop");
   // ── Serial monitor commands ───────────────────────────────
   if (Serial.available()) {
     String cmd = Serial.readStringUntil('\n');

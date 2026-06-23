@@ -2,12 +2,10 @@
 #include <Arduino.h>
 #include <LittleFS.h>
 #include <WiFi.h>
-#include <WiFiClientSecure.h>
-#include <HTTPClient.h>
-#include <ArduinoJson.h>
 #include "globals.h"
 #include "sam_tts.h"
 #include "mp3_player.h"
+#include "offline_grammar.h"
 #include "storage.h"
 #include "display.h"
 
@@ -15,37 +13,10 @@
 bool isValidMp3(String path);
 void playMP3(String path);
 
-#define GEMINI_API_KEY  "AIzaSyDfZ6oywGJnwf8BqcSsKziKO5MUwvggKNk"
-#define GEMINI_MODEL    "gemini-2.5-flash"
-#define GEMINI_HOST     "generativelanguage.googleapis.com"
-#define GEMINI_TIMEOUT  15000
-
-String callGemini(String noteText) {
-  if (WiFi.status()!=WL_CONNECTED) return "";
-  String prompt="You are a study assistant. Rewrite this note: '"+noteText+
-    "'. Rules: 1. Fix grammar. 2. Add key phrases. 3. Max 5 sentences. 4. Max 7 words per sentence. 5. Return ONLY the rewritten note.";
-  DynamicJsonDocument reqDoc(1024);
-  JsonArray contents=reqDoc.createNestedArray("contents");
-  JsonObject content=contents.createNestedObject();
-  content.createNestedArray("parts").createNestedObject()["text"]=prompt;
-  String reqBody; serializeJson(reqDoc,reqBody);
-  String url="https://"+String(GEMINI_HOST)+"/v1beta/models/"+String(GEMINI_MODEL)+":generateContent?key="+String(GEMINI_API_KEY);
-  WiFiClientSecure client; client.setInsecure();
-  HTTPClient http; http.begin(client,url);
-  http.addHeader("Content-Type","application/json"); http.setTimeout(GEMINI_TIMEOUT);
-  int code=http.POST(reqBody); if (code!=200) { http.end(); return ""; }
-  String response=http.getString(); http.end();
-  DynamicJsonDocument resDoc(4096);
-  if (deserializeJson(resDoc,response)) return "";
-  if (!resDoc.containsKey("candidates")) return "";
-  String result=resDoc["candidates"][0]["content"]["parts"][0]["text"].as<String>();
-  result.trim(); return result;
-}
-
 void handleLangSelect() {
   // Uncomment below to flood serial with button state — useful for debugging
-  // Serial.print(F("[BTN] SEL=")); Serial.print(!digitalRead(BTN_SELECT));
-  // Serial.print(F(" DOWN=")); Serial.println(!digitalRead(BTN_DOWN));
+  // Serial.print(F("[BTN] SEL=")); Serial.print(buttonPressed(BTN_SELECT));
+  // Serial.print(F(" DOWN=")); Serial.println(buttonPressed(BTN_DOWN));
 
   unsigned long now = millis();
   unsigned long debounceLeft = (now - lastDebounce < DEBOUNCE_MS) ? (DEBOUNCE_MS - (now - lastDebounce)) : 0;
@@ -58,11 +29,11 @@ void handleLangSelect() {
     }
     return;
   }
-  if (digitalRead(BTN_SELECT)==LOW) {
+  if (buttonPressed(BTN_SELECT)) {
     Serial.println(F("[LANG] SELECT pressed → English"));
     lastDebounce=millis(); langEnglish=true; saveConfig(); speakPhrase("english");
     currentState=STATE_MAIN_MENU; menuIndex=0; drawMainMenu();
-  } else if (digitalRead(BTN_DOWN)==LOW) {
+  } else if (buttonPressed(BTN_DOWN)) {
     Serial.println(F("[LANG] DOWN pressed → Chichewa"));
     lastDebounce=millis(); langEnglish=false; saveConfig(); speakPhrase("chichewa");
     currentState=STATE_MAIN_MENU; menuIndex=0; drawMainMenu();
@@ -71,18 +42,25 @@ void handleLangSelect() {
 
 void handleMainMenu() {
   if (millis()-lastDebounce<DEBOUNCE_MS) return;
-  if (digitalRead(BTN_DOWN)==LOW) {
+  if (buttonPressed(BTN_DOWN)) {
     lastDebounce=millis(); menuIndex=(menuIndex+1)%MENU_COUNT; drawMainMenu();
     if (menuIndex==0) speakPhrase("new_note");
     else if (menuIndex==1) speakPhrase("read_notes");
     else speakPhrase("language");
-  } else if (digitalRead(BTN_SELECT)==LOW) {
+  } else if (buttonPressed(BTN_SELECT)) {
     lastDebounce=millis();
     if (menuIndex==0) {
       histLen=0; pendingTitle=""; capitalNext=false; numberMode=false;
       for (int i=0;i<6;i++) dots[i]=false; cellBuilding=false;
       selectPrev=false; undoPrev=false; undoPending=false; backWarnSpoken=false; lastAutosave=millis();
       lastDebounce=millis();
+      if (restoreDraft()) {
+        brailleClearCell();
+        drawBraillePad(pendingTitle.length() ? "Note:" : "Title:");
+        samSayString("Draft restored.");
+        if (histLen > 0) samSayChunked(brailleBufferString());
+        return;
+      }
       currentState=STATE_WRITE_TITLE;
       Serial.println(F("[STATE] Entering WRITE_TITLE"));
       drawBraillePad("Title:"); speakPhrase("write_title");
@@ -108,14 +86,14 @@ void handleMainMenu() {
 
 void handleReadNotes() {
   if (millis()-lastDebounce<DEBOUNCE_MS) return;
-  if (digitalRead(BTN_DOWN)==LOW) {
+  if (buttonPressed(BTN_DOWN)) {
     lastDebounce=millis();
     if (noteCount>0) { selectedNote=(selectedNote+1)%noteCount; drawReadNotes(); {
       String _tp = noteTitleMp3Path(selectedNote);
       if (isValidMp3(_tp)) { playMP3(_tp); }
       else { samSayString(getNoteTitle(selectedNote)); queueNoteTitleAudio(selectedNote); }
     } }
-  } else if (digitalRead(BTN_SELECT)==LOW) {
+  } else if (buttonPressed(BTN_SELECT)) {
     lastDebounce=millis();
     if (noteCount>0) {
       noteScrollOffset=0; currentState=STATE_VIEW_NOTE; drawViewNote(selectedNote);
@@ -129,23 +107,23 @@ void handleReadNotes() {
         queueNoteAudio(selectedNote);
       }
     }
-  } else if (digitalRead(BTN_REREAD)==LOW) {
+  } else if (buttonPressed(BTN_REREAD)) {
     lastDebounce=millis(); if (noteCount>0) {
       String _tp = noteTitleMp3Path(selectedNote);
       if (isValidMp3(_tp)) { playMP3(_tp); }
       else { samSayString(getNoteTitle(selectedNote)); queueNoteTitleAudio(selectedNote); }
     }
-  } else if (digitalRead(BTN_DELETE)==LOW) {
+  } else if (buttonPressed(BTN_DELETE)) {
     lastDebounce=millis();
     if (noteCount>0) { currentState=STATE_DELETE_CONFIRM; drawDeleteConfirm(); samSayString("delete "+getNoteTitle(selectedNote)+"?"); }
-  } else if (digitalRead(BTN_BACK)==LOW) {
+  } else if (buttonPressed(BTN_BACK)) {
     lastDebounce=millis(); menuIndex=0; currentState=STATE_MAIN_MENU; drawMainMenu(); speakPhrase("new_note");
   }
 }
 
 void handleViewNote() {
   if (millis()-lastDebounce<DEBOUNCE_MS) return;
-  if (digitalRead(BTN_DOWN)==LOW) {
+  if (buttonPressed(BTN_DOWN)) {
     lastDebounce=millis(); noteScrollOffset++; drawViewNote(selectedNote);
     // Only speak line if no MP3 — if MP3 was played the whole note was heard already
     if (!isValidMp3(noteMp3Path(selectedNote))) {
@@ -158,7 +136,7 @@ void handleViewNote() {
       if (noteScrollOffset<total) samSayString(lines[noteScrollOffset]);
       else speakPhrase("end_of_note");
     }
-  } else if (digitalRead(BTN_REREAD)==LOW) {
+  } else if (buttonPressed(BTN_REREAD)) {
     lastDebounce=millis();
     String mp3p = noteMp3Path(selectedNote);
     if (isValidMp3(mp3p)) {
@@ -171,20 +149,19 @@ void handleViewNote() {
       speakPhrase("end_of_note");
       queueNoteAudio(selectedNote);
     }
-  } else if (digitalRead(BTN_AISAVE)==LOW) {
+  } else if (buttonPressed(BTN_AISAVE)) {
     lastDebounce=millis();
     if (aiBusy) { speakPhrase("loading"); return; }
-    if (WiFi.status()!=WL_CONNECTED) { speakPhrase("no_wifi_ai"); drawToast("No WiFi!"); drawViewNote(selectedNote); return; }
     aiBusy=true; speakPhrase("ai"); speakPhrase("loading"); drawAILoading();
-    String improved=callGemini(noteList[selectedNote]); aiBusy=false;
+    String improved=improveNoteOffline(getNoteBody(selectedNote)); aiBusy=false;
     if (improved.length()>0) {
       aiImprovedNote=improved; currentState=STATE_AI_PREVIEW; drawAIPreview(improved);
       speakPhrase("ai_ready"); samSayChunked(improved);
-    } else { speakPhrase("ai_failed"); drawToast("AI Failed!"); drawViewNote(selectedNote); }
-  } else if (digitalRead(BTN_DELETE)==LOW) {
+    } else { speakPhrase("ai_failed"); samSayString("Keep writing or try again."); drawToast("Grammar failed!"); drawViewNote(selectedNote); }
+  } else if (buttonPressed(BTN_DELETE)) {
     lastDebounce=millis(); currentState=STATE_DELETE_CONFIRM; drawDeleteConfirm();
     samSayString("delete "+getNoteTitle(selectedNote)+"?");
-  } else if (digitalRead(BTN_BACK)==LOW) {
+  } else if (buttonPressed(BTN_BACK)) {
     lastDebounce=millis(); noteScrollOffset=0; currentState=STATE_READ_NOTES; drawReadNotes(); {
       String _tp = noteTitleMp3Path(selectedNote);
       if (isValidMp3(_tp)) { playMP3(_tp); }
@@ -195,8 +172,8 @@ void handleViewNote() {
 
 void handleAIPreview() {
   if (millis()-lastDebounce<DEBOUNCE_MS) return;
-  if (digitalRead(BTN_REREAD)==LOW) { lastDebounce=millis(); samSayChunked(aiImprovedNote); }
-  else if (digitalRead(BTN_SELECT)==LOW) {
+  if (buttonPressed(BTN_REREAD)) { lastDebounce=millis(); samSayChunked(aiImprovedNote); }
+  else if (buttonPressed(BTN_SELECT)) {
     lastDebounce=millis();
     String fullNote=getNoteTitle(selectedNote)+"\n"+aiImprovedNote;
     File f=LittleFS.open(noteTxtPath(selectedNote),FILE_WRITE); if(f){f.print(fullNote);f.close();}
@@ -204,10 +181,10 @@ void handleAIPreview() {
     if (LittleFS.exists(noteMp3Path(selectedNote))) LittleFS.remove(noteMp3Path(selectedNote));
     queueNoteAudio(selectedNote); speakPhrase("note_saved"); drawToast("Updated!");
     noteScrollOffset=0; currentState=STATE_VIEW_NOTE; drawViewNote(selectedNote);
-  } else if (digitalRead(BTN_BACK)==LOW) {
+  } else if (buttonPressed(BTN_BACK)) {
     lastDebounce=millis(); aiImprovedNote=""; noteScrollOffset=0;
     currentState=STATE_VIEW_NOTE; drawViewNote(selectedNote); speakPhrase("kept");
-  } else if (digitalRead(BTN_DELETE)==LOW) {
+  } else if (buttonPressed(BTN_DELETE)) {
     lastDebounce=millis(); aiImprovedNote=""; noteScrollOffset=0;
     currentState=STATE_VIEW_NOTE; drawViewNote(selectedNote); speakPhrase("cancelled");
   }
@@ -215,7 +192,7 @@ void handleAIPreview() {
 
 void handleDeleteConfirm() {
   if (millis()-lastDebounce<DEBOUNCE_MS) return;
-  if (digitalRead(BTN_SELECT)==LOW) {
+  if (buttonPressed(BTN_SELECT)) {
     lastDebounce=millis();
     if (LittleFS.exists(noteTxtPath(selectedNote))) LittleFS.remove(noteTxtPath(selectedNote));
     if (LittleFS.exists(noteMp3Path(selectedNote))) LittleFS.remove(noteMp3Path(selectedNote));
@@ -231,7 +208,7 @@ void handleDeleteConfirm() {
       if (isValidMp3(_tp)) { playMP3(_tp); }
       else { samSayString(getNoteTitle(selectedNote)); queueNoteTitleAudio(selectedNote); }
     }
-  } else if (digitalRead(BTN_BACK)==LOW) {
+  } else if (buttonPressed(BTN_BACK)) {
     lastDebounce=millis(); speakPhrase("cancelled");
     currentState=STATE_READ_NOTES; drawReadNotes();
     if (noteCount>0) {
@@ -241,3 +218,4 @@ void handleDeleteConfirm() {
     }
   }
 }
+

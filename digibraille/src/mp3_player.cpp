@@ -1,96 +1,44 @@
 // ============================================================
 //  MP3 PLAYER + VOICERSS — ESP8266Audio only
 //  NO AudioTools in this file — ever
-//  Uses custom DacOutput class with dacWrite() to avoid
-//  DMA conflict with SAM's AudioTools-based DirectDAC
+//  Uses I2S output for MAX98357A/MAX9857A-style amplifier boards
 // ============================================================
 #include "mp3_player.h"
 #include "globals.h"
 #include "sam_tts.h"
+#include <SD.h>
 #include <HTTPClient.h>
+#include "AudioFileSource.h"
 #include "AudioFileSourceLittleFS.h"
+#include "AudioFileSourceSD.h"
 #include "AudioGeneratorMP3.h"
-#include "AudioOutput.h"
+#include "AudioOutputI2S.h"
 
 extern volatile bool audioFetchIdle;
 
-#define VRSS_API_KEY  "xxxxxtype it in"
+#define VRSS_API_KEY  "72f72678e3ac4477a3638b69ef893e2d"
 #define VRSS_HOST     "api.voicerss.org"
 #define VRSS_VOICE    "Mike"
 #define VRSS_LANG     "en-us"
 #define VRSS_FORMAT      "22khz_16bit_mono"
 #define VRSS_SAMPLE_RATE 22050
-// ─── CUSTOM DAC OUTPUT ───────────────────────────────────────
-// Uses dacWrite() just like SAM — no DMA, no conflict
-class DacOutput : public AudioOutput {
-public:
-  bool begin() override {
-    _logged = false;          // reset so DAC params log on every new play
-    dacWrite(25, 128);
-    SetRate(22050);
-    SetBitsPerSample(16);
-    SetChannels(1);
-    UpdateDelay();
-    return true;
-  }
-
-  bool SetRate(int hz) override {
-    AudioOutput::SetRate(hz);
-    UpdateDelay();
-    return true;
-  }
-
-  bool ConsumeSample(int16_t sample[2]) override {
-    if (!_logged) {
-      Serial.print(F("[DAC] hertz="));    Serial.println(hertz);
-      Serial.print(F("[DAC] bps="));      Serial.println(bps);
-      Serial.print(F("[DAC] channels=")); Serial.println(channels);
-      _logged = true;
-    }
-    uint8_t val = (uint8_t)((sample[LEFTCHANNEL] >> 8) + 128);
-    dacWrite(25, val);
-
-    unsigned long now = micros();
-    if (now < _nextMicros) {
-      delayMicroseconds(_nextMicros - now);
-      
-    } _nextMicros += _periodUs;
-    return true;
-  }
-
-  void flush() override {
-    dacWrite(25, 128);
-  }
-
-  bool stop() override {
-    dacWrite(25, 128);
-    return true;
-  }
-
-private:
-  void UpdateDelay() {
-    _periodUs   = (hertz > 0) ? (1000000UL / hertz) : 45UL;
-    _nextMicros = micros() + _periodUs;
-  }
-
-  unsigned long _periodUs  = 45;
-  unsigned long _nextMicros = 0;
-  bool          _logged     = false;
-};
-
 
 static AudioGeneratorMP3  _mp3;
-static DacOutput          _dacOut;
-static AudioFileSourceLittleFS* _audioSrc = nullptr;
+static AudioOutputI2S     _i2sOut;
+static AudioFileSource*   _audioSrc = nullptr;
 
 void mp3Setup() {
-  _dacOut.begin();
+  _i2sOut.SetPinout(AMP_BCLK_PIN, AMP_LRC_PIN, AMP_DIN_PIN);
+  _i2sOut.SetGain(0.6);
+  logTs("AUDIO", "MP3 I2S configured");
 }
 
-// ─── VALIDATE MP3 FILE ───────────────────────────────────────
 bool isValidMp3(String path) {
-  if (!LittleFS.exists(path)) return false;
-  File f = LittleFS.open(path, FILE_READ);
+  bool fromSd = sdReady && SD.exists(path.c_str());
+  bool fromLittleFs = LittleFS.exists(path);
+  if (!fromSd && !fromLittleFs) return false;
+
+  File f = fromSd ? SD.open(path.c_str(), FILE_READ) : LittleFS.open(path, FILE_READ);
   if (!f) return false;
   int sz = f.size();
   // Read first 3 bytes — MP3 starts with ID3 (0x49 0x44 0x33) or sync (0xFF 0xFB)
@@ -100,7 +48,8 @@ bool isValidMp3(String path) {
   bool sizeOk   = sz > 500;
   bool headerOk = (header[0]==0xFF && (header[1]&0xE0)==0xE0) || // sync word
                   (header[0]==0x49 && header[1]==0x44 && header[2]==0x33); // ID3
-  Serial.print(F("[MP3] Validate ")); Serial.print(path);
+  Serial.print(F("[MP3] Validate ")); Serial.print(fromSd ? F("SD ") : F("FS "));
+  Serial.print(path);
   Serial.print(F(" sz=")); Serial.print(sz);
   Serial.print(F(" hdr=0x")); Serial.print(header[0],HEX);
   Serial.print(F(" ok=")); Serial.println(sizeOk && headerOk ? "YES" : "NO");
@@ -110,52 +59,44 @@ bool isValidMp3(String path) {
 // ─── PLAY MP3 ────────────────────────────────────────────────
 void playMP3(String path) {
   WiFi.setSleep(true);
-  Serial.print(F("[MP3] START: ")); Serial.println(path);
+  logTsValue("AUDIO", "MP3 START ", path);
   unsigned long t0 = millis();
 
-  // Stop any running decode cleanly
   if (_mp3.isRunning()) { _mp3.stop(); delay(20); }
-  _dacOut.stop();
   delay(30);
 
-  // Tear down old source
   if (_audioSrc) { delete _audioSrc; _audioSrc = nullptr; }
 
-  // Open new source
-  _audioSrc = new AudioFileSourceLittleFS(path.c_str());
+  bool fromSd = sdReady && SD.exists(path.c_str());
+  _audioSrc = fromSd
+    ? (AudioFileSource*)new AudioFileSourceSD(path.c_str())
+    : (AudioFileSource*)new AudioFileSourceLittleFS(path.c_str());
   if (!_audioSrc || !_audioSrc->isOpen()) {
-    Serial.println(F("[MP3] Cannot open")); return;
+    logTsValue("AUDIO", "MP3 OPEN FAILED ", path);
+    WiFi.setSleep(false);
+    return;
   }
+  logTs("AUDIO", fromSd ? "MP3 source SD" : "MP3 source LittleFS");
 
-  // Reset DAC — also resets _logged so params print fresh
-  _dacOut.begin();
-
-  // Hold DAC at mid-rail while MP3 decoder syncs to first frame
-  // Without this the pin floats and picks up noise before audio starts
-  for (uint8_t i = 0; i < 40; i++) {
-    dacWrite(25, 128);
-    delayMicroseconds(500);   // 40 × 500µs = 20ms total silence padding
-  }
-
-  _mp3.begin(_audioSrc, &_dacOut);
+  _i2sOut.SetPinout(AMP_BCLK_PIN, AMP_LRC_PIN, AMP_DIN_PIN);
+  _i2sOut.SetGain(0.6);
+  _mp3.begin(_audioSrc, &_i2sOut);
 
   int loops = 0;
   while (_mp3.isRunning()) {
+    debugLogButtonTransitions("mp3");
     if (!_mp3.loop()) { _mp3.stop(); break; }
     loops++;
   }
 
-  // Explicit silence + settle after last sample
-  _dacOut.flush();
-  dacWrite(25, 128);
+  _i2sOut.stop();
   delay(10);
 
-  // Tear down source
   if (_audioSrc) { delete _audioSrc; _audioSrc = nullptr; }
 
-  Serial.print(F("[MP3] DONE ")); Serial.print(millis() - t0);
-  Serial.print(F("ms loops=")); Serial.println(loops);
-WiFi.setSleep(false);
+  Serial.print('['); Serial.print(millis()); Serial.print(F(" ms] AUDIO MP3 DONE duration="));
+  Serial.print(millis() - t0); Serial.print(F("ms loops=")); Serial.println(loops);
+  WiFi.setSleep(false);
 }
 // ─── VOICERSS FETCH ──────────────────────────────────────────
 bool vrssFetch(String text, String path) {
@@ -349,14 +290,14 @@ void audioFetchTask(void* param) {
     }
 
     // Retry up to 3 times with delay between attempts
-    // Delay also prevents collision with Gemini calls on Core 0
+      // Delay also prevents collision with foreground WiFi/audio work on Core 0
     bool fetchOk = false;
     for (int attempt = 1; attempt <= 3; attempt++) {
       char buf[72];
       snprintf(buf, sizeof(buf), "Attempt %d/3: %s", attempt, job.path);
       c1log(buf);
 
-      // Small delay so Core 0 WiFi calls (Gemini) can complete first
+      // Small delay so Core 0 foreground work can complete first
       delay(500 * attempt);
 
       if (WiFi.status() != WL_CONNECTED) {

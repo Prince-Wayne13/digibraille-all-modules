@@ -5,11 +5,6 @@
 #include <Fonts/FreeSerif9pt7b.h>
 #include "globals.h"
 
-#define i2c_Address  0x3C
-#define SCREEN_WIDTH  128
-#define SCREEN_HEIGHT  64
-#define OLED_RESET    -1
-
 extern Adafruit_SH1106G display;
 
 static const unsigned char PROGMEM image_heart_8x8[] = {

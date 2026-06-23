@@ -50,6 +50,23 @@ inline char decodeBraille(uint8_t code, bool& capNext, bool& numMode) {
 // ─── PAD LOGIC ───────────────────────────────────────────────
 void brailleClearCell() { for (int i=0;i<6;i++) dots[i]=false; cellBuilding=false; }
 
+String brailleBufferString() {
+  String buf = "";
+  for (int i=0;i<histLen;i++) buf += history[i].value;
+  return buf;
+}
+
+void speakUndoResult(char removed) {
+  if (removed == 0) { speakPhrase("empty"); return; }
+  String msg = "Removed ";
+  if (removed == ' ') msg += "space";
+  else msg += removed;
+  msg += ". Now reads ";
+  String buf = brailleBufferString();
+  msg += buf.length() ? buf : "empty";
+  samSayChunked(msg);
+}
+
 void brailleCommit() {
   uint8_t code = 0;
   for (int i=0;i<6;i++) if (dots[i]) code|=(1<<i);
@@ -72,17 +89,26 @@ void brailleCommit() {
 }
 
 void brailleUndoChar() {
+  char removed = 0;
+  if (histLen>0) removed = history[histLen-1].value;
   if (histLen>0) histLen--; capitalNext=false; brailleClearCell();
   drawBraillePad(currentState==STATE_WRITE_TITLE?"Title:":"Note:");
-  speakPhrase("undo");
+  speakUndoResult(removed);
 }
 
 void brailleUndoSentence() {
+  String removed = "";
   if (histLen>0) histLen--;
-  while (histLen>0 && history[histLen-1].value!='.' && history[histLen-1].value!='!' && history[histLen-1].value!='?') histLen--;
+  while (histLen>0 && history[histLen-1].value!='.' && history[histLen-1].value!='!' && history[histLen-1].value!='?') {
+    removed = String(history[histLen-1].value) + removed;
+    histLen--;
+  }
   capitalNext=false; numberMode=false; brailleClearCell();
   drawBraillePad(currentState==STATE_WRITE_TITLE?"Title:":"Note:");
-  speakPhrase("undo_sentence");
+  String msg = "Removed sentence. Now reads ";
+  String buf = brailleBufferString();
+  msg += buf.length() ? buf : "empty";
+  samSayChunked(msg);
 }
 
 void brailleReadBuffer() {
@@ -109,7 +135,11 @@ void brailleSaveNote() {
   String fullNote=pendingTitle+"\n"+body;
   int slot=-1;
   for (int i=0;i<MAX_NOTES;i++) { if (!LittleFS.exists(noteTxtPath(i))) { slot=i; break; } }
-  if (slot==-1) { speakPhrase("storage_full"); return; }
+  if (slot==-1) {
+    speakPhrase("storage_full");
+    samSayString("Delete an old note from read notes, then save again.");
+    return;
+  }
   File f=LittleFS.open(noteTxtPath(slot), FILE_WRITE); if (f) { f.print(fullNote); f.close(); }
   loadNotes(); speakPhrase("note_saved"); drawToast("Saved!"); clearDraft(); queueNoteAudio(slot);
   histLen=0; pendingTitle=""; capitalNext=false; numberMode=false;
@@ -136,10 +166,10 @@ void handleBraillePad() {
     }
   }
   if (anyNewDot) drawBraillePad(lbl);
-  bool selNow=!digitalRead(BTN_SELECT);
+  bool selNow=buttonPressed(BTN_SELECT);
   if (selNow&&!selectPrev&&(now-lastDebounce)>DEBOUNCE_MS) { lastDebounce=now; brailleCommit(); }
   selectPrev=selNow;
-  bool undoNow=!digitalRead(BTN_BACK);
+  bool undoNow=buttonPressed(BTN_BACK);
   if (undoNow&&!undoPrev) { backHeldSince=now; backLongFired=false; backWarnSpoken=false; }
   if (!undoNow&&undoPrev&&!backLongFired) {
     if (undoPending&&(now-undoPendingTime)<UNDO_DBLCLICK_MS) {
@@ -159,10 +189,11 @@ void handleBraillePad() {
   }
   undoPrev=undoNow;
   if (undoPending&&(now-undoPendingTime)>=UNDO_DBLCLICK_MS) { undoPending=false; brailleUndoChar(); }
-  if (!digitalRead(BTN_REREAD)&&(now-lastDebounce)>DEBOUNCE_MS) { lastDebounce=now; brailleReadBuffer(); }
-  if (!digitalRead(BTN_AISAVE)&&(now-lastDebounce)>DEBOUNCE_MS) {
+  if (buttonPressed(BTN_REREAD)&&(now-lastDebounce)>DEBOUNCE_MS) { lastDebounce=now; brailleReadBuffer(); }
+  if (buttonPressed(BTN_AISAVE)&&(now-lastDebounce)>DEBOUNCE_MS) {
     lastDebounce=now;
     if (currentState==STATE_WRITE_TITLE) brailleConfirmTitle(); else brailleSaveNote();
   }
-  if (!digitalRead(BTN_DELETE)&&(now-lastDebounce)>DEBOUNCE_MS) { lastDebounce=now; brailleClearBuffer(); }
+  if (buttonPressed(BTN_DELETE)&&(now-lastDebounce)>DEBOUNCE_MS) { lastDebounce=now; brailleClearBuffer(); }
 }
+

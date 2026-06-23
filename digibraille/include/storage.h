@@ -91,4 +91,24 @@ void saveDraft() {
   f.close();
 }
 
+bool restoreDraft() {
+  if (!LittleFS.exists(DRAFT_PATH)) return false;
+  File f = LittleFS.open(DRAFT_PATH, FILE_READ); if (!f) return false;
+  pendingTitle = f.readStringUntil('\n');
+  pendingTitle.trim();
+  String body = f.readString();
+  f.close();
+  body.trim();
+  if (pendingTitle.length() == 0 && body.length() == 0) return false;
+
+  histLen = 0;
+  for (int i = 0; i < (int)body.length() && histLen < MAX_HISTORY; i++) {
+    history[histLen++] = { body[i] };
+  }
+  capitalNext = false;
+  numberMode = false;
+  currentState = pendingTitle.length() ? STATE_NEW_NOTE : STATE_WRITE_TITLE;
+  return true;
+}
+
 void clearDraft() { if (LittleFS.exists(DRAFT_PATH)) LittleFS.remove(DRAFT_PATH); }
