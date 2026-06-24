@@ -34,6 +34,7 @@ static const int DOT_PINS[6] = {32, 33, 18, 19, 23, 26};
 #define DOT_DEBOUNCE_MS 15
 
 #define DEBUG_AUDIO_BUTTONS 1
+#define OFFLINE_SD_AUDIO 1
 
 inline bool isValidPin(int pin) {
   return pin >= 0;

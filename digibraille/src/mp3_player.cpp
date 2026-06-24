@@ -100,6 +100,10 @@ void playMP3(String path) {
 }
 // ─── VOICERSS FETCH ──────────────────────────────────────────
 bool vrssFetch(String text, String path) {
+#if OFFLINE_SD_AUDIO
+  logTs("VRSS", "Offline SD audio mode; fetch disabled");
+  return false;
+#endif
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println(F("[VRSS] No WiFi")); return false;
   }
@@ -238,6 +242,13 @@ void c1log(const char* msg) {
 }
 
 void audioFetchTask(void* param) {
+#if OFFLINE_SD_AUDIO
+  logTs("C1", "Audio fetch task disabled in offline SD audio mode");
+  while (true) {
+    audioFetchIdle = true;
+    vTaskDelay(pdMS_TO_TICKS(1000));
+  }
+#endif
   AudioFetchJob job;
   while (true) {
     audioFetchIdle = (audioFetchQueue != nullptr && uxQueueMessagesWaiting(audioFetchQueue) == 0);
@@ -332,6 +343,11 @@ void audioFetchTask(void* param) {
 }
 
 bool _safeQueue(String path, String text) {
+#if OFFLINE_SD_AUDIO
+  Serial.print(F("[QUEUE] OFFLINE SD mode; not fetching "));
+  Serial.println(path);
+  return false;
+#endif
   if (audioFetchQueue == nullptr) return false;
   if (text.length() == 0) return false;
   AudioFetchJob job;

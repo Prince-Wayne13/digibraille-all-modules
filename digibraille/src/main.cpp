@@ -257,26 +257,10 @@ void setup() {
     Serial.println(F("[WIFI] Starting in background"));
   }
 */
-  // ── Core 1 — audio fetch task ────────────────────────────
-  // ── First run audio cache ────────────────────────────────
-  // Core 1 will handle this — signal it via a flag file
-  // If /sfx/en/cached.ok does not exist — first run
-  if (!LittleFS.exists("/sfx/en/cached.ok")) {
-    if (WiFi.status() == WL_CONNECTED) {
-      showStatus("First run setup", "Getting audio...", "Please wait");
-      Serial.println(F("[BOOT] First run — queueing menu audio cache"));
-      AudioFetchJob job;
-      strncpy(job.path, "CACHE_MENU", sizeof(job.path));
-      strncpy(job.text, "", sizeof(job.text));
-      xQueueSend(audioFetchQueue, &job, portMAX_DELAY);
-    } else {
-      wifiCachePending = true;
-      Serial.println(F("[BOOT] Cache pending until WiFi connects"));
-      showStatus("No WiFi", "Using SAM voice", "Connect later");
-    }
+  if (sdReady) {
+    showStatus("Audio ready", "SD voice enabled", "");
   } else {
-    Serial.println(F("[BOOT] Menu audio already cached"));
-    showStatus("Audio ready", "All phrases cached", "");
+    showStatus("No SD card", "Using SAM voice", "");
   }
 
   // ── Ready ────────────────────────────────────────────────

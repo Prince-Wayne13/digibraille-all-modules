@@ -1,0 +1,46 @@
+ESP32 SD voice player
+---------------------
+SD pins: CS=5 SCK=14 MISO=4 MOSI=17
+I2S pins: BCLK=16 LRC=27 DIN=25
+[1041 ms] Trying SD mount at 4000000 Hz...
+[1106 ms] SD mounted at 4000000 Hz.
+Card type: SDHC/SDXC
+Card size: 14910 MB
+Filesystem total: 14904 MB
+Filesystem used: 20 MB
+
+Type a word and press Enter to play /voice/<word>.mp3
+Commands:
+  ls      - list the /voice folder
+  tone    - play a 1 second I2S test tone
+  stop    - stop current playback
+  help    - show this help
+
+a
+[9056 ms] enter pressed
+[9056 ms] input: a
+[9056 ms] search started: /voice/a.mp3
+[9065 ms] search done: found 3671 bytes (9 ms after enter)
+[9077 ms] audio started: /voice/a.mp3 (21 ms after enter)
+[10250 ms] audio stopped: audio stopped
+ability
+[23908 ms] enter pressed
+[23908 ms] input: ability
+[23908 ms] search started: /voice/ability.mp3
+[23919 ms] search done: found 4859 bytes (11 ms after enter)
+[23931 ms] audio started: /voice/ability.mp3 (23 ms after enter)
+[25506 ms] audio stopped: audio stopped
+a
+[30762 ms] enter pressed
+[30762 ms] input: a
+[30762 ms] search started: /voice/a.mp3
+[30773 ms] search done: found 3671 bytes (11 ms after enter)
+[30785 ms] audio started: /voice/a.mp3 (23 ms after enter)
+[31961 ms] audio stopped: audio stopped
+ability
+[34744 ms] enter pressed
+[34744 ms] input: ability
+[34745 ms] search started: /voice/ability.mp3
+[34755 ms] search done: found 4859 bytes (11 ms after enter)
+[34767 ms] audio started: /voice/ability.mp3 (23 ms after enter)
+[36343 ms] audio stopped: audio stopped
