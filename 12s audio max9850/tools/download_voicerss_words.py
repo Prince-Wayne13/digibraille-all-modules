@@ -25,9 +25,51 @@ import time
 import urllib.parse
 import urllib.request
 from pathlib import Path
+from urllib.error import HTTPError, URLError
 
 
 API_URL = "https://api.voicerss.org/"
+
+
+def load_api_keys(api_key: str | None, api_key_file: Path | None) -> list[str]:
+    keys: list[str] = []
+
+    if api_key_file is not None:
+        path = api_key_file.expanduser()
+        if path.exists():
+            for raw_line in path.read_text(encoding="utf-8").splitlines():
+                cleaned = raw_line.strip()
+                if not cleaned or cleaned.startswith("#"):
+                    continue
+
+                if "=" in cleaned:
+                    _, value = cleaned.split("=", 1)
+                    cleaned = value.strip()
+
+                if cleaned:
+                    keys.append(cleaned)
+
+    if api_key:
+        if not keys:
+            keys = [api_key]
+        elif api_key not in keys:
+            keys.insert(0, api_key)
+
+    return keys
+
+
+def should_retry_with_next_key(exc: Exception) -> bool:
+    message = str(exc).lower()
+    indicators = (
+        "quota",
+        "limit",
+        "429",
+        "rate limit",
+        "too many requests",
+        "throttle",
+        "exceeded",
+    )
+    return any(indicator in message for indicator in indicators)
 
 
 def safe_filename(text: str) -> str:
@@ -153,6 +195,12 @@ def parse_args() -> argparse.Namespace:
         default=os.getenv("VOICE_RSS_API_KEY"),
         help="Voice RSS API key. Can also be set with VOICE_RSS_API_KEY.",
     )
+    parser.add_argument(
+        "--api-key-file",
+        type=Path,
+        default=Path("tools") / "apikeys.txt",
+        help="Text file containing one API key per line. Lines starting with # are ignored.",
+    )
     parser.add_argument("--language", default="en-us", help="Voice RSS language code. Default: en-us")
     parser.add_argument("--voice", default=None, help="Optional Voice RSS voice name, for example Linda.")
     parser.add_argument("--codec", default="MP3", help="Audio codec. Default: MP3")
@@ -178,8 +226,12 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
 
-    if not args.api_key and not args.dry_run:
-        print("Missing Voice RSS API key. Pass --api-key or set VOICE_RSS_API_KEY.", file=sys.stderr)
+    api_keys = load_api_keys(args.api_key, args.api_key_file)
+    if not api_keys and not args.dry_run:
+        print(
+            "Missing Voice RSS API key. Pass --api-key, set VOICE_RSS_API_KEY, or provide --api-key-file.",
+            file=sys.stderr,
+        )
         return 2
 
     if not args.wordlist.exists():
@@ -198,8 +250,11 @@ def main() -> int:
         return 0
 
     print(f"Found {len(words)} word(s). Output: {args.output_dir}")
+    if api_keys:
+        print(f"Using {len(api_keys)} API key(s) from {args.api_key_file}")
 
     failures = 0
+    active_key_index = 0
     for index, word in enumerate(words, start=1):
         destination = args.output_dir / f"{safe_filename(word)}.mp3"
 
@@ -218,18 +273,38 @@ def main() -> int:
             continue
 
         try:
-            download_word(
-                word,
-                destination,
-                api_key=args.api_key,
-                language=args.language,
-                voice=args.voice,
-                audio_format=args.audio_format,
-                codec=args.codec,
-                rate=args.rate,
-                timeout=args.timeout,
-            )
-            print(f"[{index}/{len(words)}] downloaded: {word!r} -> {destination.name}")
+            key_index = active_key_index
+            for key_attempt in range(len(api_keys)):
+                try:
+                    download_word(
+                        word,
+                        destination,
+                        api_key=api_keys[key_index],
+                        language=args.language,
+                        voice=args.voice,
+                        audio_format=args.audio_format,
+                        codec=args.codec,
+                        rate=args.rate,
+                        timeout=args.timeout,
+                    )
+                    active_key_index = key_index
+                    print(f"[{index}/{len(words)}] downloaded: {word!r} -> {destination.name}")
+                    break
+                except Exception as exc:
+                    if not should_retry_with_next_key(exc):
+                        raise
+
+                    next_key_index = (key_index + 1) % len(api_keys)
+                    if next_key_index == active_key_index:
+                        raise
+
+                    print(
+                        f"[{index}/{len(words)}] API key {key_index + 1}/{len(api_keys)} hit a limit; trying next key {next_key_index + 1}/{len(api_keys)}",
+                        file=sys.stderr,
+                    )
+                    key_index = next_key_index
+            else:
+                raise RuntimeError("All API keys were exhausted")
         except Exception as exc:
             failures += 1
             print(f"[{index}/{len(words)}] failed: {word!r}: {exc}", file=sys.stderr)

@@ -1,1 +1,1 @@
-python .\tools\download_voicerss_words.py --api-key YOUR_NEW_KEY --resume --dry-run
+python .\tools\download_voicerss_words.py --api-key-file .\tools\apikeys.txt --resume

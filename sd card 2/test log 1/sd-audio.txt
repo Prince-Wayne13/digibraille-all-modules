@@ -44,3 +44,222 @@ ability
 [34755 ms] search done: found 4859 bytes (11 ms after enter)
 [34767 ms] audio started: /voice/ability.mp3 (23 ms after enter)
 [36343 ms] audio stopped: audio stopped
+
+ESP32 SD voice player
+---------------------
+SD pins: CS=5 SCK=14 MISO=4 MOSI=17
+I2S pins: BCLK=16 LRC=27 DIN=25
+[1041 ms] Trying SD mount at 4000000 Hz...
+[1061 ms] SD mounted at 4000000 Hz.
+Card type: SDHC/SDXC
+Card size: 14910 MB
+Filesystem total: 14904 MB
+Filesystem used: 20 MB
+
+Type a word and press Enter to play /voice/<word>.mp3
+Commands:
+  ls      - list the /voice folder
+  tone    - play a 1 second I2S test tone
+  stop    - stop current playback
+  help    - show this help
+
+academy
+[11866 ms] enter pressed
+[11866 ms] input: academy
+[11867 ms] search started: /voice/academy.mp3
+[11880 ms] search done: found 4967 bytes (14 ms after enter)
+[11896 ms] audio started: /voice/academy.mp3 (30 ms after enter)
+[13500 ms] audio stopped: audio stopped
+acceptable
+[15825 ms] enter pressed
+[15825 ms] input: acceptable
+[15826 ms] search started: /voice/acceptable.mp3
+[15841 ms] search done: found 5291 bytes (16 ms after enter)
+[15857 ms] audio started: /voice/acceptable.mp3 (32 ms after enter)
+[17576 ms] audio stopped: audio stopped
+Disconnected (GetOverlappedResult failed (PermissionError(13, 'Access is denied.', None, 5)))
+Reconnecting to COM5     Connected!
+able
+[7297 ms] enter pressed
+[7297 ms] input: able
+[7298 ms] search started: /voice/able.mp3
+[7306 ms] search done: found 4319 bytes (9 ms after enter)
+[7318 ms] audio started: /voice/able.mp3 (21 ms after enter)
+[8707 ms] audio stopped: audio stopped
+access
+[11046 ms] enter pressed
+[11046 ms] input: access
+[11046 ms] search started: /voice/access.mp3
+[11061 ms] search done: found 4859 bytes (15 ms after enter)
+[11077 ms] audio started: /voice/access.mp3 (31 ms after enter)
+[12653 ms] audio stopped: audio stopped
+accurate
+[19337 ms] enter pressed
+[19338 ms] input: accurate
+[19338 ms] search started: /voice/accurate.mp3
+[19361 ms] search done: found 4967 bytes (24 ms after enter)
+[19385 ms] audio started: /voice/accurate.mp3 (48 ms after enter)
+addit[20993 ms] audio stopped: audio stopped
+ional
+[22007 ms] enter pressed
+[22008 ms] input: additional
+[22008 ms] search started: /voice/additional.mp3
+[22039 ms] search done: found 5075 bytes (32 ms after enter)
+[22072 ms] audio started: /voice/additional.mp3 (65 ms after enter)
+a[23719 ms] audio stopped: audio stopped
+dding
+[24927 ms] enter pressed
+[24927 ms] input: adding
+[24927 ms] search started: /voice/adding.mp3
+[24958 ms] search done: found 4427 bytes (31 ms after enter)
+[24991 ms] audio started: /voice/adding.mp3 (64 ms after enter)
+[26422 ms] audio stopped: audio stopped
+addition
+[29111 ms] enter pressed
+[29111 ms] input: addition
+[29112 ms] search started: /voice/addition.mp3
+[29143 ms] search done: found 4859 bytes (32 ms after enter)
+[29175 ms] audio started: /voice/addition.mp3 (64 ms after enter)
+[30751 ms] audio stopped: audio stopped
+acts
+[32340 ms] enter pressed
+[32340 ms] input: acts
+[32340 ms] search started: /voice/acts.mp3
+[32371 ms] search done: found 4427 bytes (31 ms after enter)
+[32404 ms] audio started: /voice/acts.mp3 (64 ms after enter)
+act[33835 ms] audio stopped: audio stopped
+or
+[34252 ms] enter pressed
+[34252 ms] input: actor
+[34253 ms] search started: /voice/actor.mp3
+[34284 ms] search done: found 4535 bytes (32 ms after enter)
+[34316 ms] audio started: /voice/actor.mp3 (64 ms after enter)
+a[35780 ms] audio stopped: audio stopped
+cDisconnected (GetOverlappedResult failed (PermissionError(13, 'Access is denied.', None, 5)))
+Reconnecting to COM5     Connected!
+
+ESP32 SD voice player
+---------------------
+SD pins: CS=5 SCK=14 MISO=4 MOSI=17
+I2S pins: BCLK=16 LRC=27 DIN=25
+[1041 ms] Trying SD mount at 4000000 Hz...
+[1106 ms] SD mounted at 4000000 Hz.
+Card type: SDHC/SDXC
+Card size: 14910 MB
+Filesystem total: 14904 MB
+Filesystem used: 20 MB
+
+Type a word and press Enter to play /voice/<word>.mp3
+Commands:
+  ls      - list the /voice folder
+  tone    - play a 1 second I2S test tone
+  stop    - stop current playback
+  help    - show this help
+
+activities
+[5977 ms] enter pressed
+[5977 ms] input: activities
+[5977 ms] search started: /voice/activities.mp3
+[6003 ms] search done: found 5507 bytes (26 ms after enter)
+[6031 ms] audio started: /voice/activities.mp3 (54 ms after enter)
+ac[7820 ms] audio stopped: audio stopped
+actually
+[12620 ms] enter pressed
+[12620 ms] input: aactually
+[12620 ms] search started: /voice/aactually.mp3
+[ 12782][E][vfs_api.cpp:105] open(): /sd/voice/aactually.mp3 does not exist, no permits for creation
+[12792 ms] search done: not found (172 ms after enter)
+a
+[18755 ms] enter pressed
+[18755 ms] input: a
+[18755 ms] search started: /voice/a.mp3
+[18765 ms] search done: found 3671 bytes (10 ms after enter)
+[18777 ms] audio started: /voice/a.mp3 (22 ms after enter)
+a[19953 ms] audio stopped: audio stopped
+ctually
+[29134 ms] enter pressed
+[29134 ms] input: ctually
+[29134 ms] search started: /voice/ctually.mp3
+[ 29297][E][vfs_api.cpp:105] open(): /sd/voice/ctually.mp3 does not exist, no permits for creation
+[29306 ms] search done: not found (172 ms after enter)
+actually
+[31814 ms] enter pressed
+[31814 ms] input: actually
+[31814 ms] search started: /voice/actually.mp3
+[31845 ms] search done: found 4967 bytes (31 ms after enter)
+[31877 ms] audio started: /voice/actually.mp3 (63 ms after enter)
+[33485 ms] audio stopped: audio stopped
+dapter
+[34849 ms] enter pressed
+[34849 ms] input: dapter
+[34849 ms] search started: /voice/dapter.mp3
+[ 35012][E][vfs_api.cpp:105] open(): /sd/voice/dapter.mp3 does not exist, no permits for creation
+[35021 ms] search done: not found (172 ms after enter)
+add
+[38566 ms] enter pressed
+[38566 ms] input: add
+[38567 ms] search started: /voice/add.mp3
+[38597 ms] search done: found 4103 bytes (31 ms after enter)
+[38630 ms] audio started: /voice/add.mp3 (64 ms after enter)
+[39950 ms] audio stopped: audio stopped
+aggree
+[46016 ms] enter pressed
+[46016 ms] input: aggree
+[46016 ms] search started: /voice/aggree.mp3
+[ 46179][E][vfs_api.cpp:105] open(): /sd/voice/aggree.mp3 does not exist, no permits for creation
+[46188 ms] search done: not found (172 ms after enter)
+agree
+[48171 ms] enter pressed
+[48171 ms] input: agree
+[48171 ms] search started: /voice/agree.mp3
+[48227 ms] search done: found 4427 bytes (56 ms after enter)
+[48284 ms] audio started: /voice/agree.mp3 (113 ms after enter)
+agre[49716 ms] audio stopped: audio stopped
+agreements
+[54267 ms] enter pressed
+[54268 ms] input: agreagreements
+[54268 ms] search started: /voice/agreagreements.mp3
+[ 54430][E][vfs_api.cpp:105] open(): /sd/voice/agreagreements.mp3 does not exist, no permits for creation
+[54440 ms] search done: not found (173 ms after enter)
+agreed
+[57599 ms] enter pressed
+[57599 ms] input: agreed
+[57599 ms] search started: /voice/agreed.mp3
+[57655 ms] search done: found 4859 bytes (56 ms after enter)
+[57712 ms] audio started: /voice/agreed.mp3 (113 ms after enter)
+a[59288 ms] audio stopped: audio stopped
+head
+[60904 ms] enter pressed
+[60904 ms] input: ahead
+[60905 ms] search started: /voice/ahead.mp3
+[60965 ms] search done: found 4643 bytes (61 ms after enter)
+[61026 ms] audio started: /voice/ahead.mp3 (122 ms after enter)
+a[62530 ms] audio stopped: audio stopped
+gricultural
+[65713 ms] enter pressed
+[65713 ms] input: agricultural
+[65713 ms] search started: /voice/agricultural.mp3
+[65773 ms] search done: found 5939 bytes (60 ms after enter)
+[65834 ms] audio started: /voice/agricultural.mp3 (121 ms after enter)
+[67770 ms] audio stopped: audio stopped
+ages
+[69370 ms] enter pressed
+[69371 ms] input: ages
+[69371 ms] search started: /voice/ages.mp3
+[69427 ms] search done: found 4643 bytes (57 ms after enter)
+[69484 ms] audio started: /voice/ages.mp3 (114 ms after enter)
+[70988 ms] audio stopped: audio stopped
+allow
+[76946 ms] enter pressed
+[76946 ms] input: allow
+[76946 ms] search started: /voice/allow.mp3
+[77015 ms] search done: found 4211 bytes (69 ms after enter)
+[77084 ms] audio started: /voice/allow.mp3 (138 ms after enter)
+all[78444 ms] audio stopped: audio stopped
+allows
+[83675 ms] enter pressed
+[83675 ms] input: allows
+[83675 ms] search started: /voice/allows.mp3
+[83743 ms] search done: found 4751 bytes (68 ms after enter)
+[83813 ms] audio started: /voice/allows.mp3 (138 ms after enter)
+[85349 ms] audio stopped: audio stopped

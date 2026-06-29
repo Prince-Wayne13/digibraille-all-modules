@@ -18,6 +18,7 @@
 #define I2S_DIN  25
 
 #define VOICE_DIR "/voice"
+#define INTRO_PLAY_COUNT 3
 
 SPIClass sdSpi(HSPI);
 
@@ -34,6 +35,13 @@ bool ensureVoiceDir();
 void listDir(fs::FS &fs, const char *dirname, uint8_t levels);
 void handleSerialCommand(String command, uint32_t enterMs);
 void playWord(String word, uint32_t enterMs);
+void playPath(const String &path);
+void playIntroTest();
+bool gatherMp3Files(fs::FS &fs, const char *dirname, uint8_t levels, String *paths, size_t &count, size_t maxCount);
+void playBeep(int toneHz, int durationMs);
+void playAttemptBeep();
+void playSuccessBeep();
+void playFailureBeep();
 void playTestTone();
 void stopPlayback(const char *reason);
 String wordToPath(String word);
@@ -55,6 +63,10 @@ void setup() {
   digitalWrite(SD_CS_PIN, HIGH);
   sdSpi.begin(SD_SCK_PIN, SD_MISO_PIN, SD_MOSI_PIN, SD_CS_PIN);
 
+  audioOut = new AudioOutputI2S();
+  audioOut->SetPinout(I2S_BCLK, I2S_LRC, I2S_DIN);
+  audioOut->SetGain(0.5);
+
   const uint32_t speeds[] = {4000000, 1000000, 400000};
   for (uint8_t i = 0; i < sizeof(speeds) / sizeof(speeds[0]); i++) {
     Serial.printf("[%lu ms] Trying SD mount at %lu Hz...\n", millis(), speeds[i]);
@@ -64,23 +76,24 @@ void setup() {
       break;
     }
 
+    playAttemptBeep();
     SD.end();
     delay(250);
   }
 
   if (!sdMounted) {
     Serial.printf("[%lu ms] SD card mount failed at all test speeds.\n", millis());
+    playFailureBeep();
     printHelp();
     return;
   }
 
+  playSuccessBeep();
+  randomSeed(micros());
   printCardInfo();
   ensureVoiceDir();
 
-  audioOut = new AudioOutputI2S();
-  audioOut->SetPinout(I2S_BCLK, I2S_LRC, I2S_DIN);
-  audioOut->SetGain(0.5);
-
+  playIntroTest();
   printHelp();
 }
 
@@ -283,6 +296,159 @@ void playWord(String word, uint32_t enterMs) {
   }
 
   Serial.printf("[%lu ms] audio started: %s (%lu ms after enter)\n", millis(), path.c_str(), millis() - enterMs);
+}
+
+void playPath(const String &path) {
+  if (!sdMounted) {
+    Serial.printf("[%lu ms] SD not mounted.\n", millis());
+    return;
+  }
+
+  stopPlayback("new path");
+  File probe = SD.open(path.c_str(), FILE_READ);
+  if (!probe || probe.isDirectory()) {
+    if (probe) {
+      probe.close();
+    }
+    Serial.printf("[%lu ms] intro path not found: %s\n", millis(), path.c_str());
+    return;
+  }
+
+  size_t bytes = probe.size();
+  probe.close();
+  Serial.printf("[%lu ms] intro file opened: %s (%u bytes)\n", millis(), path.c_str(), static_cast<unsigned int>(bytes));
+
+  audioFile = new AudioFileSourceSD(path.c_str());
+  mp3 = new AudioGeneratorMP3();
+  if (!mp3->begin(audioFile, audioOut)) {
+    Serial.printf("[%lu ms] intro playback failed: %s\n", millis(), path.c_str());
+    stopPlayback("intro start failed");
+    return;
+  }
+}
+
+bool gatherMp3Files(fs::FS &fs, const char *dirname, uint8_t levels, String *paths, size_t &count, size_t maxCount) {
+  File root = fs.open(dirname);
+  if (!root || !root.isDirectory()) {
+    if (root) {
+      root.close();
+    }
+    return false;
+  }
+
+  File file = root.openNextFile();
+  while (file) {
+    if (file.isDirectory()) {
+      if (levels > 0) {
+        gatherMp3Files(fs, file.path(), levels - 1, paths, count, maxCount);
+        if (count >= maxCount) {
+          file.close();
+          break;
+        }
+      }
+    } else {
+      String filePath = file.path();
+      String name = baseName(filePath);
+      name.toLowerCase();
+      if (name.endsWith(".mp3")) {
+        if (count < maxCount) {
+          paths[count++] = filePath;
+        }
+      }
+    }
+    file = root.openNextFile();
+  }
+
+  root.close();
+  return true;
+}
+
+void playIntroTest() {
+  if (!sdMounted) {
+    return;
+  }
+
+  const size_t maxFiles = 64;
+  String paths[maxFiles];
+  size_t count = 0;
+  if (!gatherMp3Files(SD, VOICE_DIR, 2, paths, count, maxFiles) || count == 0) {
+    Serial.printf("[%lu ms] intro test skipped: no MP3 files found in %s\n", millis(), VOICE_DIR);
+    return;
+  }
+
+  Serial.printf("[%lu ms] intro test found %u MP3 files\n", millis(), static_cast<unsigned int>(count));
+  size_t playCount = (count < INTRO_PLAY_COUNT) ? count : INTRO_PLAY_COUNT;
+
+  for (size_t i = 0; i < playCount; i++) {
+    size_t j = random(count - i);
+    String temp = paths[j];
+    paths[j] = paths[count - i - 1];
+    paths[count - i - 1] = temp;
+  }
+
+  for (size_t i = 0; i < playCount; i++) {
+    const String path = paths[count - 1 - i];
+    Serial.printf("[%lu ms] intro test playing (%u/%u): %s\n", millis(), static_cast<unsigned int>(i + 1), static_cast<unsigned int>(playCount), path.c_str());
+    playPath(path);
+    while (mp3 != nullptr && mp3->isRunning()) {
+      mp3->loop();
+    }
+    delay(100);
+  }
+
+  Serial.printf("[%lu ms] intro test complete\n", millis());
+}
+
+void playBeep(int toneHz, int durationMs) {
+  if (audioOut == nullptr) {
+    return;
+  }
+
+  stopPlayback("beep");
+  audioOut->SetPinout(I2S_BCLK, I2S_LRC, I2S_DIN);
+  audioOut->SetRate(44100);
+  audioOut->SetBitsPerSample(16);
+  audioOut->SetChannels(2);
+  audioOut->SetOutputModeMono(true);
+  audioOut->SetGain(0.5);
+
+  if (!audioOut->begin()) {
+    return;
+  }
+
+  const int halfPeriodSamples = 44100 / (toneHz * 2);
+  const int16_t amplitude = 10000;
+  int32_t samples = (44100LL * durationMs) / 1000;
+
+  for (int32_t i = 0; i < samples; i++) {
+    int16_t value = ((i / halfPeriodSamples) % 2 == 0) ? amplitude : -amplitude;
+    int16_t sample[2] = {value, value};
+    while (!audioOut->ConsumeSample(sample)) {
+      delay(1);
+    }
+  }
+
+  audioOut->flush();
+  audioOut->stop();
+}
+
+void playAttemptBeep() {
+  playBeep(1200, 80);
+}
+
+void playSuccessBeep() {
+  playBeep(2200, 120);
+  delay(70);
+  playBeep(2200, 120);
+}
+
+void playFailureBeep() {
+  for (int i = 0; i < 5; i++) {
+    playBeep(300, 120);
+    if (i < 4) {
+      delay(70);
+    }
+  }
 }
 
 void playTestTone() {
