@@ -1,6 +1,7 @@
 #pragma once
 #include <Arduino.h>
 #include <LittleFS.h>
+#include <SD.h>
 #include "globals.h"
 
 // Forward declaration — defined in mp3_player.cpp
@@ -13,29 +14,59 @@ void ensureFolders() {
   if (!LittleFS.exists("/sfx"))         LittleFS.mkdir("/sfx");
   if (!LittleFS.exists(SFX_EN_FOLDER)) LittleFS.mkdir(SFX_EN_FOLDER);
   if (!LittleFS.exists(SFX_CH_FOLDER)) LittleFS.mkdir(SFX_CH_FOLDER);
+  if (sdReady && !SD.exists(NOTES_FOLDER)) SD.mkdir(NOTES_FOLDER);
 }
 
-void loadConfig() {
-  if (!LittleFS.exists(CONFIG_PATH)) return;
-  File f = LittleFS.open(CONFIG_PATH, FILE_READ); if (!f) return;
+inline bool noteStorageUsesSd() { return sdReady; }
+inline bool noteExists(int index) {
+  String path = noteTxtPath(index);
+  return noteStorageUsesSd() ? SD.exists(path.c_str()) : LittleFS.exists(path);
+}
+inline File openNoteFile(int index, const char* mode) {
+  String path = noteTxtPath(index);
+  return noteStorageUsesSd() ? SD.open(path.c_str(), mode) : LittleFS.open(path, mode);
+}
+inline bool removeNoteFile(int index) {
+  String path = noteTxtPath(index);
+  return noteStorageUsesSd() ? SD.remove(path.c_str()) : LittleFS.remove(path);
+}
+inline void removeNoteAudioFiles(int index) {
+  String body = noteMp3Path(index);
+  String title = noteTitleMp3Path(index);
+  if (SD.exists(body.c_str())) SD.remove(body.c_str());
+  if (SD.exists(title.c_str())) SD.remove(title.c_str());
+  if (LittleFS.exists(body)) LittleFS.remove(body);
+  if (LittleFS.exists(title)) LittleFS.remove(title);
+}
+
+bool loadConfig() {
+  languageConfigured = false;
+  if (!LittleFS.exists(CONFIG_PATH)) return false;
+  File f = LittleFS.open(CONFIG_PATH, FILE_READ); if (!f) return false;
   String lang = f.readString(); f.close(); lang.trim();
+  if (lang != "en" && lang != "ch") return false;
   langEnglish = (lang == "en");
+  langChoiceIndex = langEnglish ? 0 : 1;
+  languageConfigured = true;
+  return true;
 }
 
 void saveConfig() {
   File f = LittleFS.open(CONFIG_PATH, FILE_WRITE); if (!f) return;
   f.print(langEnglish ? "en" : "ch"); f.close();
+  languageConfigured = true;
 }
 
 void loadNotes() {
   noteCount = 0;
   for (int i = 0; i < MAX_NOTES; i++) {
-    if (LittleFS.exists(noteTxtPath(i))) {
-      File f = LittleFS.open(noteTxtPath(i), FILE_READ);
+    if (noteExists(i)) {
+      File f = openNoteFile(i, FILE_READ);
       if (f) { noteList[noteCount++] = f.readString(); f.close(); }
     }
   }
   Serial.print(F("[FS] Notes loaded: ")); Serial.println(noteCount);
+  Serial.print(F("[FS] Note storage: ")); Serial.println(noteStorageUsesSd() ? "SD" : "LittleFS fallback");
 
   // Queue title + body audio for any note missing valid MP3s
   // Runs every boot — Core 1 fetches silently in background
@@ -48,20 +79,18 @@ void loadNotes() {
     Serial.print(F("[FS] Note ")); Serial.print(i);
     Serial.print(F(" title=")); Serial.print(titleOk ? "OK" : "MISS");
     Serial.print(F(" body="));  Serial.println(bodyOk  ? "OK" : "MISS");
-    if (!titleOk) queueNoteTitleAudio(i);
-    if (!bodyOk)  queueNoteAudio(i);
   }
 }
 
 void writeSeedNotes() {
-  if (LittleFS.exists(noteTxtPath(0))) return;
+  if (noteExists(0)) return;
   const char* seeds[] = {
     "Grace\nGrace, aged 18, is a blind girl from Zomba, Malawi. Poverty blocks her path to university, yet she burns with passion to become a disability rights advocate, giving voice to the sidelined.",
     "Second Note\nSecond note is here",
     "Third Note\nThird note saved ok"
 };
   for (int i = 0; i < 3; i++) {
-    File f = LittleFS.open(noteTxtPath(i), FILE_WRITE);
+    File f = openNoteFile(i, FILE_WRITE);
     if (f) { f.print(seeds[i]); f.close(); }
   }
 }
@@ -69,17 +98,17 @@ void writeSeedNotes() {
 int saveNewNote(String note) {
   int slot = -1;
   for (int i = 0; i < MAX_NOTES; i++) {
-    if (!LittleFS.exists(noteTxtPath(i))) { slot = i; break; }
+    if (!noteExists(i)) { slot = i; break; }
   }
   if (slot == -1) return -1;
-  File f = LittleFS.open(noteTxtPath(slot), FILE_WRITE);
+  File f = openNoteFile(slot, FILE_WRITE);
   if (f) { f.print(note); f.close(); }
   return slot;
 }
 
 void saveImprovedNote(int index, String improved) {
   String fullNote = getNoteTitle(index) + "\n" + improved;
-  File f = LittleFS.open(noteTxtPath(index), FILE_WRITE);
+  File f = openNoteFile(index, FILE_WRITE);
   if (f) { f.print(fullNote); f.close(); }
   noteList[index] = fullNote;
 }

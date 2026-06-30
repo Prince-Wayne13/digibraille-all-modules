@@ -68,6 +68,7 @@ void speakUndoResult(char removed) {
 }
 
 void brailleCommit() {
+  unsigned long actionStart = millis();
   uint8_t code = 0;
   for (int i=0;i<6;i++) if (dots[i]) code|=(1<<i);
   const char* lbl = (currentState==STATE_WRITE_TITLE)?"Title:":"Note:";
@@ -86,6 +87,8 @@ void brailleCommit() {
     }
   } else samSay("unknown.");
   brailleClearCell(); drawBraillePad(lbl);
+  logTestEvent(2, "braille-commit-complete", String("duration_ms=") + String(millis() - actionStart));
+  logTestEvent(3, "typing-buffer", brailleBufferString());
 }
 
 void brailleUndoChar() {
@@ -134,13 +137,13 @@ void brailleSaveNote() {
   }
   String fullNote=pendingTitle+"\n"+body;
   int slot=-1;
-  for (int i=0;i<MAX_NOTES;i++) { if (!LittleFS.exists(noteTxtPath(i))) { slot=i; break; } }
+  for (int i=0;i<MAX_NOTES;i++) { if (!noteExists(i)) { slot=i; break; } }
   if (slot==-1) {
     speakPhrase("storage_full");
     samSayString("Delete an old note from read notes, then save again.");
     return;
   }
-  File f=LittleFS.open(noteTxtPath(slot), FILE_WRITE); if (f) { f.print(fullNote); f.close(); }
+  File f=openNoteFile(slot, FILE_WRITE); if (f) { f.print(fullNote); f.close(); }
   loadNotes(); speakPhrase("note_saved"); drawToast("Saved!"); clearDraft(); queueNoteAudio(slot);
   histLen=0; pendingTitle=""; capitalNext=false; numberMode=false;
   brailleClearCell(); backWarnSpoken=false;
@@ -162,10 +165,16 @@ void handleBraillePad() {
     bool r=!digitalRead(DOT_PINS[i]);
     if (r!=dotPrev[i] && (now-dotLastMs[i])>DOT_DEBOUNCE_MS) {
       dotLastMs[i]=now; dotPrev[i]=r;
-      if (r) { dots[i]=true; cellBuilding=true; anyNewDot=true; }
+      if (r) {
+        dots[i]=true; cellBuilding=true; anyNewDot=true;
+        logTestEvent(2, "dot-press-detected", String("DOT") + String(i + 1));
+      }
     }
   }
-  if (anyNewDot) drawBraillePad(lbl);
+  if (anyNewDot) {
+    drawBraillePad(lbl);
+    logTestEvent(2, "dot-action-complete", String("buffer_len=") + String(histLen));
+  }
   bool selNow=buttonPressed(BTN_SELECT);
   if (selNow&&!selectPrev&&(now-lastDebounce)>DEBOUNCE_MS) { lastDebounce=now; brailleCommit(); }
   selectPrev=selNow;

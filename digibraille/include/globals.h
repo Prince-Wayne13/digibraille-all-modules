@@ -1,7 +1,6 @@
 #pragma once
 #include <Arduino.h>
 #include <LittleFS.h>
-#include <WiFi.h>
 
 #define OLED_SDA_PIN      21
 #define OLED_SCL_PIN      22
@@ -27,7 +26,7 @@
 #define BTN_AISAVE        36
 #define BTN_DELETE        39
 #define BTN_REREAD        -1
-#define DEBOUNCE_MS  220
+#define DEBOUNCE_MS  15
 
 // ─── BRAILLE DOTS ────────────────────────────────────────────
 static const int DOT_PINS[6] = {32, 33, 18, 19, 23, 26};
@@ -63,6 +62,20 @@ inline void logTsValue(const char* tag, const char* message, const String& value
   Serial.println(value);
 }
 
+inline void logTestEvent(int section, const char* event, const String& detail = "") {
+  Serial.print('[');
+  Serial.print(millis());
+  Serial.print(F(" ms] TEST "));
+  Serial.print(section);
+  Serial.print(F(" "));
+  Serial.print(event);
+  if (detail.length() > 0) {
+    Serial.print(F(" "));
+    Serial.print(detail);
+  }
+  Serial.println();
+}
+
 inline const char* buttonNameForPin(int pin) {
   if (pin == BTN_BACK) return "BACK";
   if (pin == BTN_SELECT) return "SELECT";
@@ -87,6 +100,7 @@ inline void debugLogButtonTransitions(const char* context) {
       Serial.print(buttonNameForPin(pins[i]));
       Serial.print(now ? F(" DOWN ") : F(" UP "));
       Serial.println(context);
+      logTestEvent(2, now ? "press-detected" : "release-detected", String(buttonNameForPin(pins[i])));
     }
   }
 #endif
@@ -108,6 +122,8 @@ inline void debugLogButtonTransitions(const char* context) {
 
 // ─── LANGUAGE ────────────────────────────────────────────────
 extern bool langEnglish;
+extern bool languageConfigured;
+extern int  langChoiceIndex;
 
 // ─── STATES ──────────────────────────────────────────────────
 enum State {
@@ -190,18 +206,4 @@ inline const char* phraseEN(const char* name) {
   for (int i = 0; i < PHRASE_COUNT; i++)
     if (strcmp(PHRASES[i].name, name) == 0) return PHRASES[i].en;
   return name;
-}
-extern wl_status_t lastWifiStatus;
-extern unsigned long lastWifiCheck;
-#define WIFI_CHECK_MS 2000
-
-inline String urlEncode(String s) {
-  String o = "";
-  for (char c : s) {
-    if      (c==' ')  o+="%20"; else if (c=='\'') o+="%27";
-    else if (c=='!')  o+="%21"; else if (c=='?')  o+="%3F";
-    else if (c==',')  o+="%2C"; else if (c=='.')  o+="%2E";
-    else o+=c;
-  }
-  return o;
 }

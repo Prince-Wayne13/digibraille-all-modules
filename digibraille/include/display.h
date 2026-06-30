@@ -7,13 +7,6 @@
 
 extern Adafruit_SH1106G display;
 
-static const unsigned char PROGMEM image_heart_8x8[] = {
-  0x66, 0xFF, 0xFF, 0xFF, 0x7E, 0x3C, 0x18, 0x00
-};
-static const unsigned char PROGMEM wifi_bmp[] = {
-  0x1C, 0x22, 0x5D, 0x41, 0x1C, 0x22, 0x08, 0x00
-};
-
 // ─── braille decode needed for live preview ──────────────────
 #define BRAILLE_CAPITAL_IND  0b100000
 #define BRAILLE_NUMBER_IND   0b111100
@@ -21,13 +14,6 @@ static const unsigned char PROGMEM wifi_bmp[] = {
 inline char _dispDecodeBraille(uint8_t code, bool& capNext, bool& numMode);
 
 void drawStatusBar() {
-  display.drawBitmap(115, 0, image_heart_8x8, 8, 8, SH110X_WHITE);
-  if (WiFi.status() == WL_CONNECTED)
-    display.drawBitmap(104, 0, wifi_bmp, 8, 8, SH110X_WHITE);
-  else {
-    display.drawLine(104, 1, 110, 7, SH110X_WHITE);
-    display.drawLine(110, 1, 104, 7, SH110X_WHITE);
-  }
 }
 
 void drawBraillePad(const char* modeLabel) {
@@ -113,8 +99,18 @@ void drawLangSelect() {
   display.clearDisplay(); display.setFont(&FreeSerif9pt7b);
   display.setCursor(10, 14); display.setTextColor(SH110X_WHITE); display.print("Language");
   display.setFont(); display.drawLine(3, 18, 128, 18, SH110X_WHITE);
-  display.setCursor(10, 28); display.print("SELECT = English");
-  display.setCursor(10, 42); display.print("DOWN   = Chichewa");
+  const char* options[] = {"English", "Chichewa"};
+  for (int i = 0; i < 2; i++) {
+    int y = 28 + (i * 14);
+    if (i == langChoiceIndex) {
+      display.fillRect(6, y - 2, 116, 11, SH110X_WHITE);
+      display.setTextColor(SH110X_BLACK);
+    } else {
+      display.setTextColor(SH110X_WHITE);
+    }
+    display.setCursor(12, y); display.print(options[i]);
+  }
+  display.setTextColor(SH110X_WHITE);
   drawStatusBar(); display.display();
 }
 

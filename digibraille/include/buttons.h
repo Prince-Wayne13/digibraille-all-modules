@@ -1,7 +1,6 @@
 #pragma once
 #include <Arduino.h>
 #include <LittleFS.h>
-#include <WiFi.h>
 #include "globals.h"
 #include "sam_tts.h"
 #include "mp3_player.h"
@@ -14,32 +13,32 @@ bool isValidMp3(String path);
 void playMP3(String path);
 
 void handleLangSelect() {
-  // Uncomment below to flood serial with button state — useful for debugging
-  // Serial.print(F("[BTN] SEL=")); Serial.print(buttonPressed(BTN_SELECT));
-  // Serial.print(F(" DOWN=")); Serial.println(buttonPressed(BTN_DOWN));
-
   unsigned long now = millis();
-  unsigned long debounceLeft = (now - lastDebounce < DEBOUNCE_MS) ? (DEBOUNCE_MS - (now - lastDebounce)) : 0;
-  if (debounceLeft > 0) {
-    // Only print occasionally so serial is not flooded
-    static unsigned long lastDebugPrint = 0;
-    if (now - lastDebugPrint > 500) {
-      lastDebugPrint = now;
-      Serial.print(F("[LANG] Debounce blocking — ")); Serial.print(debounceLeft); Serial.println(F("ms left"));
-    }
+  if (now - lastDebounce < DEBOUNCE_MS) return;
+
+  if (buttonPressed(BTN_DOWN)) {
+    lastDebounce = now;
+    langChoiceIndex = (langChoiceIndex + 1) % 2;
+    Serial.print(F("[LANG] Highlight "));
+    Serial.println(langChoiceIndex == 0 ? "English" : "Chichewa");
+    drawLangSelect();
+    speakPhrase(langChoiceIndex == 0 ? "english" : "chichewa");
     return;
   }
+
   if (buttonPressed(BTN_SELECT)) {
-    Serial.println(F("[LANG] SELECT pressed → English"));
-    lastDebounce=millis(); langEnglish=true; saveConfig(); speakPhrase("english");
-    currentState=STATE_MAIN_MENU; menuIndex=0; drawMainMenu();
-  } else if (buttonPressed(BTN_DOWN)) {
-    Serial.println(F("[LANG] DOWN pressed → Chichewa"));
-    lastDebounce=millis(); langEnglish=false; saveConfig(); speakPhrase("chichewa");
-    currentState=STATE_MAIN_MENU; menuIndex=0; drawMainMenu();
+    lastDebounce = now;
+    langEnglish = (langChoiceIndex == 0);
+    saveConfig();
+    Serial.print(F("[LANG] Saved "));
+    Serial.println(langEnglish ? "English" : "Chichewa");
+    speakPhrase(langEnglish ? "english" : "chichewa");
+    currentState = STATE_MAIN_MENU;
+    menuIndex = 0;
+    drawMainMenu();
+    speakPhrase("new_note");
   }
 }
-
 void handleMainMenu() {
   if (millis()-lastDebounce<DEBOUNCE_MS) return;
   if (buttonPressed(BTN_DOWN)) {
@@ -76,9 +75,11 @@ void handleMainMenu() {
       else { samSayString(getNoteTitle(0)); queueNoteTitleAudio(0); }
     }
     } else {
+      langChoiceIndex = langEnglish ? 0 : 1;
       currentState=STATE_LANG_SELECT; drawLangSelect();
       lastDebounce=millis();
       speakPhrase("choose_language");
+      speakPhrase(langChoiceIndex == 0 ? "english" : "chichewa");
       speakPhrase("lang_instructions");
     }
   }
@@ -87,11 +88,14 @@ void handleMainMenu() {
 void handleReadNotes() {
   if (millis()-lastDebounce<DEBOUNCE_MS) return;
   if (buttonPressed(BTN_DOWN)) {
+    unsigned long actionStart = millis();
     lastDebounce=millis();
     if (noteCount>0) { selectedNote=(selectedNote+1)%noteCount; drawReadNotes(); {
+      logTestEvent(4, "navigation-down", String("selected=") + String(selectedNote));
       String _tp = noteTitleMp3Path(selectedNote);
       if (isValidMp3(_tp)) { playMP3(_tp); }
       else { samSayString(getNoteTitle(selectedNote)); queueNoteTitleAudio(selectedNote); }
+      logTestEvent(4, "navigation-feedback-complete", String("duration_ms=") + String(millis() - actionStart));
     } }
   } else if (buttonPressed(BTN_SELECT)) {
     lastDebounce=millis();
@@ -124,7 +128,9 @@ void handleReadNotes() {
 void handleViewNote() {
   if (millis()-lastDebounce<DEBOUNCE_MS) return;
   if (buttonPressed(BTN_DOWN)) {
+    unsigned long actionStart = millis();
     lastDebounce=millis(); noteScrollOffset++; drawViewNote(selectedNote);
+    logTestEvent(4, "view-scroll-down", String("offset=") + String(noteScrollOffset));
     // Only speak line if no MP3 — if MP3 was played the whole note was heard already
     if (!isValidMp3(noteMp3Path(selectedNote))) {
       String body=getNoteBody(selectedNote); String lines[40]; int total=0; String tmp=body;
@@ -135,6 +141,7 @@ void handleViewNote() {
       }
       if (noteScrollOffset<total) samSayString(lines[noteScrollOffset]);
       else speakPhrase("end_of_note");
+      logTestEvent(4, "view-scroll-feedback-complete", String("duration_ms=") + String(millis() - actionStart));
     }
   } else if (buttonPressed(BTN_REREAD)) {
     lastDebounce=millis();
@@ -176,9 +183,9 @@ void handleAIPreview() {
   else if (buttonPressed(BTN_SELECT)) {
     lastDebounce=millis();
     String fullNote=getNoteTitle(selectedNote)+"\n"+aiImprovedNote;
-    File f=LittleFS.open(noteTxtPath(selectedNote),FILE_WRITE); if(f){f.print(fullNote);f.close();}
+    File f=openNoteFile(selectedNote,FILE_WRITE); if(f){f.print(fullNote);f.close();}
     noteList[selectedNote]=fullNote; loadNotes();
-    if (LittleFS.exists(noteMp3Path(selectedNote))) LittleFS.remove(noteMp3Path(selectedNote));
+    removeNoteAudioFiles(selectedNote);
     queueNoteAudio(selectedNote); speakPhrase("note_saved"); drawToast("Updated!");
     noteScrollOffset=0; currentState=STATE_VIEW_NOTE; drawViewNote(selectedNote);
   } else if (buttonPressed(BTN_BACK)) {
@@ -194,13 +201,11 @@ void handleDeleteConfirm() {
   if (millis()-lastDebounce<DEBOUNCE_MS) return;
   if (buttonPressed(BTN_SELECT)) {
     lastDebounce=millis();
-    if (LittleFS.exists(noteTxtPath(selectedNote))) LittleFS.remove(noteTxtPath(selectedNote));
-    if (LittleFS.exists(noteMp3Path(selectedNote))) LittleFS.remove(noteMp3Path(selectedNote));
-    loadNotes();
     for (int i=selectedNote;i<noteCount-1;i++) noteList[i]=noteList[i+1];
     noteCount--;
-    for (int i=0;i<MAX_NOTES;i++) if (LittleFS.exists(noteTxtPath(i))) LittleFS.remove(noteTxtPath(i));
-    for (int i=0;i<noteCount;i++) { File f=LittleFS.open(noteTxtPath(i),FILE_WRITE); if(f){f.print(noteList[i]);f.close();} }
+    for (int i=0;i<MAX_NOTES;i++) if (noteExists(i)) removeNoteFile(i);
+    for (int i=0;i<MAX_NOTES;i++) removeNoteAudioFiles(i);
+    for (int i=0;i<noteCount;i++) { File f=openNoteFile(i,FILE_WRITE); if(f){f.print(noteList[i]);f.close();} }
     if (selectedNote>=noteCount&&selectedNote>0) selectedNote--;
     speakPhrase("deleted"); drawToast("Deleted!"); currentState=STATE_READ_NOTES; drawReadNotes();
     if (noteCount==0) speakPhrase("no_notes"); else {

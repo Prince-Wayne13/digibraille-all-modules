@@ -85,11 +85,13 @@ void samSay(const char* text) {
   char last = s.length() > 0 ? s.charAt(s.length() - 1) : 0;
   if (last != '.' && last != '!' && last != '?') s += '.';
   logTsValue("AUDIO", "SAM START ", s);
+  logTestEvent(3, "audio-start", String("SAM ") + s);
   unsigned long t0 = millis();
   _sam.say(s.c_str());
   i2s_zero_dma_buffer(SAM_I2S_PORT);
   Serial.print('['); Serial.print(millis()); Serial.print(F(" ms] AUDIO SAM DONE duration="));
   Serial.print(millis() - t0); Serial.println(F("ms"));
+  logTestEvent(3, "audio-complete", String("duration_ms=") + String(millis() - t0));
 }
 
 void samSayString(String t) { samSay(t.c_str()); }

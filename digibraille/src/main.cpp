@@ -9,8 +9,6 @@
 //  MAX98357A DIN/BCLK/LRC -> GPIO 25, 16, 27
 //  SD CS/SCK/MISO/MOSI    -> GPIO 5, 14, 4, 17
 //
-//  BEFORE FLASHING: fill in VRSS_API_KEY in mp3_player.cpp
-//
 //  FILE STRUCTURE — why two .cpp files:
 //  sam_tts.cpp   → AudioTools only   (SAM audio)
 //  mp3_player.cpp → ESP8266Audio only (MP3 playback)
@@ -31,14 +29,13 @@
 #include "braille.h"
 #include "buttons.h"
 
-#define WIFI_SSID     "wayne"
-#define WIFI_PASSWORD "iamthegreatest"
-
 // ─── OLED INSTANCE ───────────────────────────────────────────
 Adafruit_SH1106G display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 // ─── ALL GLOBAL DEFINITIONS ──────────────────────────────────
 bool          langEnglish      = true;
+bool          languageConfigured = false;
+int           langChoiceIndex  = 0;
 State         currentState     = STATE_STARTUP;
 int           menuIndex        = 0;
 String        noteList[MAX_NOTES];
@@ -66,11 +63,8 @@ bool          backWarnSpoken   = false;
 bool          selectPrev       = false;
 bool          aiBusy           = false;
 unsigned long lastAutosave     = 0;
-QueueHandle_t audioFetchQueue;
-volatile bool  audioFetchIdle   = false;
-bool          wifiCachePending = false;
-wl_status_t   lastWifiStatus   = WL_DISCONNECTED;
-unsigned long lastWifiCheck    = 0;
+QueueHandle_t audioFetchQueue = nullptr;
+volatile bool  audioFetchIdle   = true;
 bool          sdReady          = false;
 
 const char* menuEN[] = { "New note", "Read Notes", "Language" };
@@ -101,10 +95,9 @@ const Phrase PHRASES[] = {
   { "ai",              "A I.",                          "A I."                            },
   { "loading",         "Loading.",                      "Ikukonzekera."                   },
   { "ai_failed",       "A I failed.",                   "A I yalephera."                  },
-  { "no_wifi",         "No wifi.",                      "Palibe Wi-Fi."                   },
-  { "no_wifi_ai",      "No wifi. Cannot improve note.", "Palibe Wi-Fi."                   },
+  { "sd_missing",      "SD card missing. Saving temporarily.", "SD kulibe."                },
   { "choose_language", "Choose language.",              "Sankhani chilankhulo."           },
-  { "lang_instructions", "Press select for English. Press down for Chichewa.", "Dinani select Chingelezi. Dinani pansi Chichewa." },
+  { "lang_instructions", "Press down to change. Press select to choose.", "Dinani pansi kusintha. Dinani select kusankha." },
   { "kept",            "Original kept.",                "Lembalo losungidwa."             },
   { "ai_ready",        "A I result ready.",             "A I yapeza zosintha."            },
   { "storage_full",    "Storage full.",                 "Malo odzaza."                    },
@@ -140,7 +133,6 @@ void setup() {
   esp_log_level_set("dac_continuous",ESP_LOG_NONE);
   esp_log_level_set("gpio",         ESP_LOG_NONE);
   esp_log_level_set("i2c",          ESP_LOG_NONE);
-  esp_log_level_set("wifi",         ESP_LOG_NONE);
 
   Serial.println(F("\n\n══ DIGIBRAILLE v2 BOOT ══"));
 
@@ -221,12 +213,6 @@ void setup() {
   Serial.print(F("[CFG] Language: ")); Serial.println(langEnglish ? "en" : "ch");
 
   // ── Notes ────────────────────────────────────────────────
-  // Core 1 queue must be created BEFORE loadNotes()
-  // because loadNotes() queues audio fetch jobs
-  audioFetchQueue = xQueueCreate(10, sizeof(AudioFetchJob));
-  xTaskCreatePinnedToCore(audioFetchTask, "AudioFetch", 8192, nullptr, 1, nullptr, 1);
-  Serial.println(F("[C1] Audio fetch task started on Core 1"));
-
   writeSeedNotes();
   loadNotes();
   // List all cached SFX files for debugging
@@ -306,18 +292,18 @@ void loop() {
       listDir(fsRoot, 0);
       Serial.println(F("────────────────────────────────────────\n"));
     }
-    else if (cmd == "wipe cache") {
-      if (LittleFS.exists("/sfx/en/cached.ok")) {
-        LittleFS.remove("/sfx/en/cached.ok");
-        Serial.println(F("[CMD] cached.ok removed — menu audio will re-fetch on next boot"));
-      } else {
-        Serial.println(F("[CMD] cached.ok not found"));
+    else if (cmd == "sd") {
+      Serial.print(F("[SD] mounted=")); Serial.println(sdReady ? "YES" : "NO");
+      if (sdReady) {
+        Serial.print(F("[SD] type=")); Serial.println(SD.cardType());
+        Serial.print(F("[SD] size MB=")); Serial.println((uint32_t)(SD.cardSize() / (1024 * 1024)));
+        Serial.print(F("[SD] used MB=")); Serial.println((uint32_t)(SD.usedBytes() / (1024 * 1024)));
       }
     }
     else if (cmd == "help") {
       Serial.println(F("\n── Serial Commands ─────────────────────"));
       Serial.println(F("  fs          show filesystem storage and files"));
-      Serial.println(F("  wipe cache  delete cached.ok to force re-fetch"));
+      Serial.println(F("  sd          show SD card status"));
       Serial.println(F("  help        show this list"));
       Serial.println(F("────────────────────────────────────────\n"));
     }
@@ -325,42 +311,27 @@ void loop() {
 
   if (currentState == STATE_STARTUP) {
     if (millis() - startupMillis >= 2000) {
-      Serial.println(F("[LOOP] Startup timer done — entering lang select"));
       lastDebounce = millis();
-      currentState = STATE_LANG_SELECT;
-      drawLangSelect();
-      Serial.println(F("[LOOP] drawLangSelect done — about to speak"));
-      speakPhrase("choose_language");
-      Serial.println(F("[LOOP] choose_language done — about to speak instructions"));
-      speakPhrase("lang_instructions");
-      Serial.println(F("[LOOP] *** BUTTONS NOW ACTIVE — lang select ready ***"));
+      if (languageConfigured) {
+        Serial.println(F("[LOOP] Startup timer done - entering main menu"));
+        currentState = STATE_MAIN_MENU;
+        menuIndex = 0;
+        drawMainMenu();
+        speakPhrase("new_note");
+      } else {
+        Serial.println(F("[LOOP] Startup timer done - first setup language select"));
+        langChoiceIndex = langEnglish ? 0 : 1;
+        currentState = STATE_LANG_SELECT;
+        drawLangSelect();
+        speakPhrase("choose_language");
+        speakPhrase(langChoiceIndex == 0 ? "english" : "chichewa");
+        speakPhrase("lang_instructions");
+      }
     }
     return;
   }
-
   if (currentState == STATE_WRITE_TITLE || currentState == STATE_NEW_NOTE) {
     handleBraillePad(); return;
-  }
-
-  // Periodic WiFi icon refresh
-  if (millis() - lastWifiCheck > WIFI_CHECK_MS) {
-    lastWifiCheck = millis();
-    wl_status_t nowStatus = WiFi.status();
-    if (nowStatus != lastWifiStatus) {
-      lastWifiStatus = nowStatus;
-      // Redraw status bar on whichever screen we are on
-      drawStatusBar();
-      display.display();
-
-      if (nowStatus == WL_CONNECTED && wifiCachePending) {
-        wifiCachePending = false;
-        Serial.println(F("[WIFI] Connected — queueing first-run cache"));
-        AudioFetchJob job;
-        strncpy(job.path, "CACHE_MENU", sizeof(job.path));
-        strncpy(job.text, "", sizeof(job.text));
-        xQueueSend(audioFetchQueue, &job, portMAX_DELAY);
-      }
-    }
   }
 
   switch (currentState) {
