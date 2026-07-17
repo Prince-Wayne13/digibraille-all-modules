@@ -1,0 +1,326 @@
+--- Terminal on COM5 | 115200 8-N-1
+--- Available filters and text transformations: debug, default, direct, esp32_exception_decoder, hexlify, log2file, nocontrol, printable, send_on_enter, time
+--- More details at https://bit.ly/pio-monitor-filters
+--- Quit: Ctrl+C | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H
+ets Jul 29 2019 12:21:46
+
+rst:0x1 (POWERON_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:1184
+load:0x40078000,len:13192
+load:0x40080400,len:3028
+entry 0x400805e4
+
+
+══ DIGIBRAILLE v2 BOOT ══
+[55 ms] PINS OK
+[OLED] OK
+[GRAMMAR] Offline engine ready
+[241 ms] AUDIO MP3 I2S configured
+[MP3] I2S output ready
+[STATUS] DigiBraille v2 | Starting up...
+[397 ms] SD Card mounted
+[SD] Notes folder verified: /notes
+[SAM] skipped - SD audio mode
+
+── LittleFS Info ──────────────────
+  Total : 917504 bytes
+  Used  : 712704 bytes
+  Free  : 204800 bytes
+  Used% : 77%
+── Files ──────────────────────────
+config.txt  2 B
+draft.txt  3 B
+[notes]
+  note0.txt  194 B
+  note0_chain.txt  874 B
+  note0_title_chain.txt  25 B
+  note1.txt  31 B
+  note1_chain.txt  92 B
+  note1_title_chain.txt  54 B
+  note2.txt  30 B
+  note2_chain.txt  92 B
+  note2_title_chain.txt  49 B
+[sfx]
+  [ch]
+    ai.mp3  4638 B
+    ai_failed.mp3  6222 B
+    ai_ready.mp3  7806 B
+    cancelled.mp3  5502 B
+    capital.mp3  5934 B
+    chichewa.mp3  5646 B
+    choose_language.mp3  7662 B
+    cleared.mp3  5502 B
+    deleted.mp3  6942 B
+    empty.mp3  5214 B
+    end_of_note.mp3  5646 B
+    english.mp3  6654 B
+    kept.mp3  11118 B
+    lang_instructions.mp3  16878 B
+    language.mp3  6942 B
+    loading.mp3  6798 B
+    new_note.mp3  8814 B
+    no_notes.mp3  7518 B
+    no_wifi.mp3  6222 B
+    no_wifi_ai.mp3  6222 B
+    note_saved.mp3  9390 B
+    nothing_typed.mp3  6222 B
+    number.mp3  6654 B
+    read_notes.mp3  8670 B
+    reading_note.mp3  7230 B
+    space.mp3  4782 B
+    storage_full.mp3  8382 B
+    title_saved.mp3  10830 B
+    undo.mp3  5214 B
+    undo_sentence.mp3  7662 B
+    write_title.mp3  5502 B
+  [en]
+    a.mp3  3671 B
+    ai.mp3  4211 B
+    ai_failed.mp3  7559 B
+    ai_ready.mp3  7127 B
+    b.mp3  3887 B
+    c.mp3  3887 B
+    cancelled.mp3  5075 B
+    capital.mp3  4859 B
+    chichewa.mp3  5075 B
+    choose_language.mp3  7667 B
+    cleared.mp3  4643 B
+    d.mp3  3887 B
+    deleted.mp3  4751 B
+    e.mp3  3671 B
+    empty.mp3  4427 B
+    end_of_note.mp3  8855 B
+    english.mp3  4643 B
+    f.mp3  3995 B
+    g.mp3  3887 B
+    h.mp3  4211 B
+    i.mp3  3671 B
+    j.mp3  3887 B
+    k.mp3  3995 B
+    kept.mp3  4535 B
+    l.mp3  4103 B
+    language.mp3  4859 B
+    loading.mp3  4643 B
+    m.mp3  3995 B
+    n.mp3  3995 B
+    new_note.mp3  6587 B
+    no_notes.mp3  6803 B
+    note_saved.mp3  7127 B
+    nothing_typed.mp3  7343 B
+    number.mp3  4427 B
+    o.mp3  3671 B
+    p.mp3  3779 B
+    q.mp3  4211 B
+    r.mp3  4103 B
+    read_notes.mp3  6695 B
+    reading_note.mp3  6911 B
+    s.mp3  3995 B
+    sd_missing.mp3  8747 B
+    space.mp3  4643 B
+    storage_full.mp3  7559 B
+    t.mp3  3779 B
+    title_saved.mp3  7343 B
+    u.mp3  3887 B
+    undo.mp3  4211 B
+    undo_word.mp3  6803 B
+    v.mp3  3779 B
+    w.mp3  4751 B
+    write_title.mp3  7019 B
+    y.mp3  3887 B
+    z.mp3  3887 B
+──────────────────────────────────
+
+[CFG] Language: en
+[FS] Notes loaded: 3
+[FS] Note storage: SD
+[FS] Note 0 title=OK body=OK
+[FS] Note 1 title=OK body=OK
+[FS] Note 2 title=OK body=OK
+[FS] SFX cache contents:
+  a.mp3 3671b
+  ai.mp3 4211b
+  ai_failed.mp3 7559b
+  ai_ready.mp3 7127b
+  b.mp3 3887b
+  c.mp3 3887b
+  cancelled.mp3 5075b
+  capital.mp3 4859b
+  chichewa.mp3 5075b
+  choose_language.mp3 7667b
+  cleared.mp3 4643b
+  d.mp3 3887b
+  deleted.mp3 4751b
+  e.mp3 3671b
+  empty.mp3 4427b
+  end_of_note.mp3 8855b
+  english.mp3 4643b
+  f.mp3 3995b
+  g.mp3 3887b
+  h.mp3 4211b
+  i.mp3 3671b
+  j.mp3 3887b
+  k.mp3 3995b
+  kept.mp3 4535b
+  l.mp3 4103b
+  language.mp3 4859b
+  loading.mp3 4643b
+  m.mp3 3995b
+  n.mp3 3995b
+  new_note.mp3 6587b
+  no_notes.mp3 6803b
+  note_saved.mp3 7127b
+  nothing_typed.mp3 7343b
+  number.mp3 4427b
+  o.mp3 3671b
+  p.mp3 3779b
+  q.mp3 4211b
+  r.mp3 4103b
+  read_notes.mp3 6695b
+  reading_note.mp3 6911b
+  s.mp3 3995b
+  sd_missing.mp3 8747b
+  space.mp3 4643b
+  storage_full.mp3 7559b
+  t.mp3 3779b
+  title_saved.mp3 7343b
+  u.mp3 3887b
+  undo.mp3 4211b
+  undo_word.mp3 6803b
+  v.mp3 3779b
+  w.mp3 4751b
+  write_title.mp3 7019b
+  y.mp3 3887b
+  z.mp3 3887b
+[FS] Notes loaded: 3
+[STATUS] Audio ready | SD voice enabled
+[STATUS] Ready!
+[BOOT] Complete — loop() starting
+[LOOP] Startup timer done - entering main menu
+[PHRASE] >> new_note
+[PHRASE] MP3 valid - playing
+[9894 ms] AUDIO MP3 START /sfx/en/new_note.mp3
+[9894 ms] TEST 3 audio-start /sfx/en/new_note.mp3
+[10049 ms] AUDIO MP3 source LittleFS
+[12199 ms] AUDIO MP3 DONE duration=2304ms loops=132081
+[12199 ms] TEST 3 audio-complete duration_ms=2304
+[17485 ms] BUTTON DOWN DOWN loop
+[17485 ms] TEST 2 press-detected DOWN
+[PHRASE] >> read_notes
+[PHRASE] MP3 valid - playing
+[17665 ms] AUDIO MP3 START /sfx/en/read_notes.mp3
+[17665 ms] TEST 3 audio-start /sfx/en/read_notes.mp3
+[17812 ms] AUDIO MP3 source LittleFS
+[17813 ms] BUTTON DOWN UP mp3
+[17814 ms] TEST 2 release-detected DOWN
+[19882 ms] BUTTON SELECT DOWN mp3
+[19882 ms] TEST 2 press-detected SELECT
+[19903 ms] BUTTON MP3 interrupted by button
+[19913 ms] AUDIO MP3 DONE duration=2248ms loops=129412
+[19914 ms] TEST 3 audio-complete duration_ms=2248
+[FS] Notes loaded: 3
+[FS] Note storage: SD
+[FS] Note 0 title=OK body=OK
+[FS] Note 1 title=OK body=OK
+[FS] Note 2 title=OK body=OK
+[STATE] Entering READ_NOTES — notes: 3
+[22756 ms] AUDIO MP3 START /words/en/grace.mp3
+[22756 ms] TEST 3 audio-start /words/en/grace.mp3
+[26541 ms] AUDIO MP3 source SD
+[26542 ms] BUTTON SELECT UP mp3
+[26543 ms] TEST 2 release-detected SELECT
+[28016 ms] AUDIO MP3 DONE duration=5260ms loops=90102
+[28016 ms] TEST 3 audio-complete duration_ms=5260
+[32222 ms] BUTTON SELECT DOWN loop
+[32222 ms] TEST 2 press-detected SELECT
+[PHRASE] >> reading_note
+[PHRASE] MP3 valid - playing
+[32405 ms] AUDIO MP3 START /sfx/en/reading_note.mp3
+[32405 ms] TEST 3 audio-start /sfx/en/reading_note.mp3
+[32564 ms] AUDIO MP3 source LittleFS
+[32566 ms] BUTTON SELECT UP mp3
+[32566 ms] TEST 2 release-detected SELECT
+[34821 ms] AUDIO MP3 DONE duration=2405ms loops=138973
+[34821 ms] TEST 3 audio-complete duration_ms=2405
+[37118 ms] AUDIO MP3 START /words/en/grace.mp3
+[37118 ms] TEST 3 audio-start /words/en/grace.mp3
+[40896 ms] AUDIO MP3 source SD
+[42372 ms] AUDIO MP3 DONE duration=5253ms loops=89963
+[42372 ms] TEST 3 audio-complete duration_ms=5253
+[43789 ms] AUDIO MP3 START /words/en/aged.mp3
+[43789 ms] TEST 3 audio-start /words/en/aged.mp3
+[45960 ms] AUDIO MP3 source SD
+[47436 ms] AUDIO MP3 DONE duration=3647ms loops=89930
+[47436 ms] TEST 3 audio-complete duration_ms=3647
+[ 50135][E][vfs_api.cpp:105] open(): /sd/words/en/1.mp3 does not exist, no permits for creation
+[ 52719][E][vfs_api.cpp:105] open(): /sd/words/en/8.mp3 does not exist, no permits for creation
+[55324 ms] AUDIO MP3 START /words/en/is.mp3
+[55324 ms] TEST 3 audio-start /words/en/is.mp3
+[59476 ms] AUDIO MP3 source SD
+[60847 ms] AUDIO MP3 DONE duration=5523ms loops=83573
+[60847 ms] TEST 3 audio-complete duration_ms=5523
+[60983 ms] AUDIO MP3 START /words/en/a.mp3
+[60983 ms] TEST 3 audio-start /words/en/a.mp3
+[61019 ms] AUDIO MP3 source SD
+[62207 ms] AUDIO MP3 DONE duration=1224ms loops=72318
+[62207 ms] TEST 3 audio-complete duration_ms=1224
+[63817 ms] AUDIO MP3 START /words/en/blind.mp3
+[63818 ms] TEST 3 audio-start /words/en/blind.mp3
+[66304 ms] AUDIO MP3 source SD
+[67819 ms] AUDIO MP3 DONE duration=4001ms loops=92265
+[67819 ms] TEST 3 audio-complete duration_ms=4001
+[70189 ms] AUDIO MP3 START /words/en/girl.mp3
+[70189 ms] TEST 3 audio-start /words/en/girl.mp3
+[73943 ms] AUDIO MP3 source SD
+[75386 ms] AUDIO MP3 DONE duration=5197ms loops=87902
+[75386 ms] TEST 3 audio-complete duration_ms=5197
+[77723 ms] AUDIO MP3 START /words/en/from.mp3
+[77723 ms] TEST 3 audio-start /words/en/from.mp3
+[81429 ms] AUDIO MP3 source SD
+[82872 ms] AUDIO MP3 DONE duration=5148ms loops=87938
+[82872 ms] TEST 3 audio-complete duration_ms=5148
+[86858 ms] AUDIO MP3 START /words/en/z.mp3
+[86859 ms] TEST 3 audio-start /words/en/z.mp3
+[93306 ms] AUDIO MP3 source SD
+[94566 ms] AUDIO MP3 DONE duration=7707ms loops=76740
+[94566 ms] TEST 3 audio-complete duration_ms=7707
+[97375 ms] AUDIO MP3 START /words/en/o.mp3
+[97375 ms] TEST 3 audio-start /words/en/o.mp3
+[102056 ms] AUDIO MP3 source SD
+[103244 ms] AUDIO MP3 DONE duration=5869ms loops=72289
+[103244 ms] TEST 3 audio-complete duration_ms=5869
+[105858 ms] AUDIO MP3 START /words/en/m.mp3
+[105858 ms] TEST 3 audio-start /words/en/m.mp3
+[110216 ms] AUDIO MP3 source SD
+[111515 ms] AUDIO MP3 DONE duration=5657ms loops=79203
+[111515 ms] TEST 3 audio-complete duration_ms=5657
+[112952 ms] AUDIO MP3 START /words/en/b.mp3
+[112952 ms] TEST 3 audio-start /words/en/b.mp3
+[115350 ms] AUDIO MP3 source SD
+[116610 ms] AUDIO MP3 DONE duration=3658ms loops=76725
+[116610 ms] TEST 3 audio-complete duration_ms=3658
+[116625 ms] AUDIO MP3 START /words/en/a.mp3
+[116626 ms] TEST 3 audio-start /words/en/a.mp3
+[116660 ms] AUDIO MP3 source SD
+[117847 ms] AUDIO MP3 DONE duration=1221ms loops=72412
+[117847 ms] TEST 3 audio-complete duration_ms=1221
+[120579 ms] AUDIO MP3 START /words/en/m.mp3
+[120579 ms] TEST 3 audio-start /words/en/m.mp3
+[124939 ms] AUDIO MP3 source SD
+[126238 ms] AUDIO MP3 DONE duration=5658ms loops=79208
+[126238 ms] TEST 3 audio-complete duration_ms=5658
+[126253 ms] AUDIO MP3 START /words/en/a.mp3
+[126254 ms] TEST 3 audio-start /words/en/a.mp3
+[126288 ms] AUDIO MP3 source SD
+[127475 ms] AUDIO MP3 DONE duration=1221ms loops=72412
+[127475 ms] TEST 3 audio-complete duration_ms=1221
+[130011 ms] AUDIO MP3 START /words/en/l.mp3
+[130011 ms] TEST 3 audio-start /words/en/l.mp3
+[134238 ms] AUDIO MP3 source SD
+[135570 ms] AUDIO MP3 DONE duration=5559ms loops=81050
+[135570 ms] TEST 3 audio-complete duration_ms=5559
+[135585 ms] AUDIO MP3 START /words/en/a.mp3
+[135585 ms] TEST 3 audio-start /words/en/a.mp3
+[135620 ms] AUDIO MP3 source SD

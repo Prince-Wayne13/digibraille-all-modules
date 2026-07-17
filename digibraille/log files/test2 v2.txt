@@ -1,0 +1,628 @@
+  [SD] /data/en: missing or not a directory
+  [LittleFS] /sfx/en:
+    a.mp3 3671
+    ai.mp3 4211
+    ai_failed.mp3 7559
+    ai_ready.mp3 7127
+    b.mp3 3887
+    c.mp3 3887
+    cancelled.mp3 5075
+    capital.mp3 4859
+    chichewa.mp3 5075
+    choose_language.mp3 7667
+    cleared.mp3 4643
+    d.mp3 3887
+    deleted.mp3 4751
+    e.mp3 3671
+    empty.mp3 4427
+    end_of_note.mp3 8855
+    english.mp3 4643
+    f.mp3 3995
+    g.mp3 3887
+    h.mp3 4211
+    i.mp3 3671
+    j.mp3 3887
+    k.mp3 3995
+    kept.mp3 4535
+    l.mp3 4103
+    language.mp3 4859
+    loading.mp3 4643
+    m.mp3 3995
+    n.mp3 3995
+    new_note.mp3 6587
+    no_notes.mp3 6803
+    note_saved.mp3 7127
+    nothing_typed.mp3 7343
+    number.mp3 4427
+    o.mp3 3671
+    p.mp3 3779
+    q.mp3 4211
+    r.mp3 4103
+    read_notes.mp3 6695
+    reading_note.mp3 6911
+    s.mp3 3995
+    sd_missing.mp3 8747
+    space.mp3 4643
+    storage_full.mp3 7559
+    t.mp3 3779
+    title_saved.mp3 7343
+    u.mp3 3887
+    undo.mp3 4211
+    undo_word.mp3 6803
+    v.mp3 3779
+    w.mp3 4751
+    write_title.mp3 7019
+    y.mp3 3887
+    z.mp3 3887
+[197607][E][vfs_api.cpp:105] open(): /littlefs/data/en does not exist, no permits for creation
+  [LittleFS] /data/en: missing or not a directory
+  -- probe specific words --
+  grace -> /words/en/grace.mp3 : FOUND
+[199135][E][vfs_api.cpp:105] open(): /littlefs/voice/en/grace.mp3 does not exist, no permits for creation
+  grace -> /voice/en/grace.mp3 : MISSING
+[199161][E][vfs_api.cpp:105] open(): /littlefs/sfx/en/grace.mp3 does not exist, no permits for creation
+  grace -> /sfx/en/grace.mp3 : MISSING
+[199174][E][vfs_api.cpp:105] open(): /littlefs/data/en/grace.mp3 does not exist, no permits for creation
+  grace -> /data/en/grace.mp3 : MISSING
+  poverty -> /words/en/poverty.mp3 : FOUND
+[201197][E][vfs_api.cpp:105] open(): /littlefs/voice/en/poverty.mp3 does not exist, no permits for creation
+  poverty -> /voice/en/poverty.mp3 : MISSING
+  space -> /sfx/en/space.mp3 : FOUND
+  a -> /sfx/en/a.mp3 : FOUND
+  a -> /words/en/a.mp3 : FOUND
+──────────────────────────────────────────
+
+[STATUS] Audio ready | SD voice enabled
+[STATUS] Ready!
+[BOOT] Complete — loop() starting
+[LOOP] Startup timer done - entering main menu
+[PHRASE] >> new_note
+[203418][E][vfs_api.cpp:105] open(): /sd/sfx/en/new_note.mp3 does not exist, no permits for creation
+[MP3] Validate FS /sfx/en/new_note.mp3 sz=6587 hdr=0x49 ok=YES
+[PHRASE] MP3 valid - playing
+[203504 ms] AUDIO MP3 START /sfx/en/new_note.mp3
+[203514 ms] TEST 3 audio-start /sfx/en/new_note.mp3
+[203545][E][vfs_api.cpp:105] open(): /sd/sfx/en/new_note.mp3 does not exist, no permits for creation
+[MP3] Validate FS /sfx/en/new_note.mp3 sz=6587 hdr=0x49 ok=YES
+[203630 ms] AUDIO MP3 source LittleFS
+[205780 ms] AUDIO MP3 DONE duration=2266ms loops=131273
+[205780 ms] TEST 3 audio-complete duration_ms=2266
+[231262 ms] BUTTON DOWN DOWN loop
+[231263 ms] TEST 2 press-detected DOWN
+[PHRASE] >> read_notes
+[231296][E][vfs_api.cpp:105] open(): /sd/sfx/en/read_notes.mp3 does not exist, no permits for creation
+[MP3] Validate FS /sfx/en/read_notes.mp3 sz=6695 hdr=0x49 ok=YES
+[PHRASE] MP3 valid - playing
+[231377 ms] AUDIO MP3 START /sfx/en/read_notes.mp3
+[231388 ms] TEST 3 audio-start /sfx/en/read_notes.mp3
+[231419][E][vfs_api.cpp:105] open(): /sd/sfx/en/read_notes.mp3 does not exist, no permits for creation
+[MP3] Validate FS /sfx/en/read_notes.mp3 sz=6695 hdr=0x49 ok=YES
+[231499 ms] AUDIO MP3 source LittleFS
+[231501 ms] BUTTON DOWN UP mp3
+[231501 ms] TEST 2 release-detected DOWN
+[233080 ms] BUTTON SELECT DOWN mp3
+[233080 ms] TEST 2 press-detected SELECT
+[233100 ms] BUTTON MP3 interrupted by button
+[233110 ms] AUDIO MP3 DONE duration=1723ms loops=97035
+[233111 ms] TEST 3 audio-complete duration_ms=1723
+[FS] Notes loaded: 3
+[FS] Note storage: SD
+[239411][E][vfs_api.cpp:105] open(): /sd/words/en/18.mp3 does not exist, no permits for creation
+[239418][E][vfs_api.cpp:105] open(): /sd/voice/en/18.mp3 does not exist, no permits for creation
+[239420][E][vfs_api.cpp:105] open(): /sd/sfx/en/18.mp3 does not exist, no permits for creation
+[239426][E][vfs_api.cpp:105] open(): /sd/data/en/18.mp3 does not exist, no permits for creation
+[242023][E][vfs_api.cpp:105] open(): /sd/words/en/1.mp3 does not exist, no permits for creation
+[242029][E][vfs_api.cpp:105] open(): /sd/voice/en/1.mp3 does not exist, no permits for creation
+[242031][E][vfs_api.cpp:105] open(): /sd/sfx/en/1.mp3 does not exist, no permits for creation
+[242037][E][vfs_api.cpp:105] open(): /sd/data/en/1.mp3 does not exist, no permits for creation
+[244634][E][vfs_api.cpp:105] open(): /sd/words/en/8.mp3 does not exist, no permits for creation
+[244640][E][vfs_api.cpp:105] open(): /sd/voice/en/8.mp3 does not exist, no permits for creation
+[244642][E][vfs_api.cpp:105] open(): /sd/sfx/en/8.mp3 does not exist, no permits for creation
+[244648][E][vfs_api.cpp:105] open(): /sd/data/en/8.mp3 does not exist, no permits for creation
+[255672][E][vfs_api.cpp:105] open(): /sd/words/en/zomba.mp3 does not exist, no permits for creation
+[255679][E][vfs_api.cpp:105] open(): /sd/voice/en/zomba.mp3 does not exist, no permits for creation
+[255681][E][vfs_api.cpp:105] open(): /sd/sfx/en/zomba.mp3 does not exist, no permits for creation
+[255688][E][vfs_api.cpp:105] open(): /sd/data/en/zomba.mp3 does not exist, no permits for creation
+[268984][E][vfs_api.cpp:105] open(): /sd/words/en/malawi.mp3 does not exist, no permits for creation
+[268991][E][vfs_api.cpp:105] open(): /sd/voice/en/malawi.mp3 does not exist, no permits for creation
+[268993][E][vfs_api.cpp:105] open(): /sd/sfx/en/malawi.mp3 does not exist, no permits for creation
+[269000][E][vfs_api.cpp:105] open(): /sd/data/en/malawi.mp3 does not exist, no permits for creation
+[307224][E][vfs_api.cpp:105] open(): /sd/words/en/burns.mp3 does not exist, no permits for creation
+[307231][E][vfs_api.cpp:105] open(): /sd/voice/en/burns.mp3 does not exist, no permits for creation
+[307233][E][vfs_api.cpp:105] open(): /sd/sfx/en/burns.mp3 does not exist, no permits for creation
+[307240][E][vfs_api.cpp:105] open(): /sd/data/en/burns.mp3 does not exist, no permits for creation
+[355778][E][vfs_api.cpp:105] open(): /sd/words/en/sidelined.mp3 does not exist, no permits for creation
+[355784][E][vfs_api.cpp:105] open(): /sd/voice/en/sidelined.mp3 does not exist, no permits for creation
+[355787][E][vfs_api.cpp:105] open(): /sd/sfx/en/sidelined.mp3 does not exist, no permits for creation
+[355795][E][vfs_api.cpp:105] open(): /sd/data/en/sidelined.mp3 does not exist, no permits for creation
+[376753 ms] CHAIN built /notes/note0_chain.txt
+[379056 ms] CHAIN built /notes/note0_title_chain.txt
+[CHAIN] rebuild note 0 body=OK title=OK
+[390025 ms] CHAIN built /notes/note1_chain.txt
+[396187 ms] CHAIN built /notes/note1_title_chain.txt
+[CHAIN] rebuild note 1 body=OK title=OK
+[408543][E][vfs_api.cpp:105] open(): /sd/words/en/ok.mp3 does not exist, no permits for creation
+[408550][E][vfs_api.cpp:105] open(): /sd/voice/en/ok.mp3 does not exist, no permits for creation
+[408552][E][vfs_api.cpp:105] open(): /sd/sfx/en/ok.mp3 does not exist, no permits for creation
+[408558][E][vfs_api.cpp:105] open(): /sd/data/en/ok.mp3 does not exist, no permits for creation
+[413903 ms] CHAIN built /notes/note2_chain.txt
+[420377 ms] CHAIN built /notes/note2_title_chain.txt
+[CHAIN] rebuild note 2 body=OK title=OK
+[FS] Note 0 title=OK body=OK
+[FS] Note 1 title=OK body=OK
+[FS] Note 2 title=OK body=OK
+[STATE] Entering READ_NOTES — notes: 3
+[420545 ms] AUDIO MP3 START /words/en/grace.mp3
+[420545 ms] TEST 3 audio-start /words/en/grace.mp3
+[MP3] Validate SD /words/en/grace.mp3 sz=4535 hdr=0x49 ok=YES
+[422850 ms] AUDIO MP3 source SD
+[422852 ms] BUTTON SELECT UP mp3
+[422852 ms] TEST 2 release-detected SELECT
+[424331 ms] AUDIO MP3 DONE duration=3786ms loops=88876
+[424331 ms] TEST 3 audio-complete duration_ms=3786
+[PHRASE] >> reading_note
+[429876][E][vfs_api.cpp:105] open(): /sd/sfx/en/reading_note.mp3 does not exist, no permits for creation
+[MP3] Validate FS /sfx/en/reading_note.mp3 sz=6911 hdr=0x49 ok=YES
+[PHRASE] MP3 valid - playing
+[429959 ms] AUDIO MP3 START /sfx/en/reading_note.mp3
+[429969 ms] TEST 3 audio-start /sfx/en/reading_note.mp3
+[430000][E][vfs_api.cpp:105] open(): /sd/sfx/en/reading_note.mp3 does not exist, no permits for creation
+[MP3] Validate FS /sfx/en/reading_note.mp3 sz=6911 hdr=0x49 ok=YES
+[430082 ms] AUDIO MP3 source LittleFS
+[432339 ms] AUDIO MP3 DONE duration=2370ms loops=137664
+[432339 ms] TEST 3 audio-complete duration_ms=2370
+[432368 ms] AUDIO MP3 START /words/en/grace.mp3
+[432368 ms] TEST 3 audio-start /words/en/grace.mp3
+[MP3] Validate SD /words/en/grace.mp3 sz=4535 hdr=0x49 ok=YES
+[434674 ms] AUDIO MP3 source SD
+[436149 ms] AUDIO MP3 DONE duration=3780ms loops=89288
+[436149 ms] TEST 3 audio-complete duration_ms=3780
+[436370 ms] AUDIO MP3 START /words/en/aged.mp3
+[436370 ms] TEST 3 audio-start /words/en/aged.mp3
+[MP3] Validate SD /words/en/aged.mp3 sz=4535 hdr=0x49 ok=YES
+[437712 ms] AUDIO MP3 source SD
+[439187 ms] AUDIO MP3 DONE duration=2817ms loops=89245
+[439187 ms] TEST 3 audio-complete duration_ms=2817
+[439628 ms] AUDIO MP3 START /words/en/is.mp3
+[439628 ms] TEST 3 audio-start /words/en/is.mp3
+[MP3] Validate SD /words/en/is.mp3 sz=4211 hdr=0x49 ok=YES
+[442151 ms] AUDIO MP3 source SD
+[443521 ms] AUDIO MP3 DONE duration=3893ms loops=82963
+[443521 ms] TEST 3 audio-complete duration_ms=3893
+[443742 ms] AUDIO MP3 START /words/en/a.mp3
+[443742 ms] TEST 3 audio-start /words/en/a.mp3
+[MP3] Validate SD /words/en/a.mp3 sz=3671 hdr=0x49 ok=YES
+[443799 ms] AUDIO MP3 source SD
+[444986 ms] AUDIO MP3 DONE duration=1244ms loops=71801
+[444986 ms] TEST 3 audio-complete duration_ms=1244
+[445207 ms] AUDIO MP3 START /words/en/blind.mp3
+[445207 ms] TEST 3 audio-start /words/en/blind.mp3
+[MP3] Validate SD /words/en/blind.mp3 sz=4643 hdr=0x49 ok=YES
+[446739 ms] AUDIO MP3 source SD
+[448254 ms] AUDIO MP3 DONE duration=3047ms loops=91525
+[448254 ms] TEST 3 audio-complete duration_ms=3047
+[448475 ms] AUDIO MP3 START /words/en/girl.mp3
+[448475 ms] TEST 3 audio-start /words/en/girl.mp3
+[MP3] Validate SD /words/en/girl.mp3 sz=4427 hdr=0x49 ok=YES
+[450772 ms] AUDIO MP3 source SD
+[452214 ms] AUDIO MP3 DONE duration=3739ms loops=87226
+[452214 ms] TEST 3 audio-complete duration_ms=3739
+[452435 ms] AUDIO MP3 START /words/en/from.mp3
+[452435 ms] TEST 3 audio-start /words/en/from.mp3
+[MP3] Validate SD /words/en/from.mp3 sz=4427 hdr=0x49 ok=YES
+[454695 ms] AUDIO MP3 source SD
+[456137 ms] AUDIO MP3 DONE duration=3702ms loops=87215
+[456137 ms] TEST 3 audio-complete duration_ms=3702
+[456358 ms] AUDIO MP3 START /words/en/z.mp3
+[456358 ms] TEST 3 audio-start /words/en/z.mp3
+[MP3] Validate SD /words/en/z.mp3 sz=3887 hdr=0x49 ok=YES
+[460262 ms] AUDIO MP3 source SD
+[461521 ms] AUDIO MP3 DONE duration=5163ms loops=76219
+[461521 ms] TEST 3 audio-complete duration_ms=5163
+[461522 ms] AUDIO MP3 START /words/en/o.mp3
+[461532 ms] TEST 3 audio-start /words/en/o.mp3
+[MP3] Validate SD /words/en/o.mp3 sz=3671 hdr=0x49 ok=YES
+[464382 ms] AUDIO MP3 source SD
+[465570 ms] AUDIO MP3 DONE duration=4038ms loops=71749
+[465570 ms] TEST 3 audio-complete duration_ms=4038
+[465571 ms] AUDIO MP3 START /words/en/m.mp3
+[465581 ms] TEST 3 audio-start /words/en/m.mp3
+[MP3] Validate SD /words/en/m.mp3 sz=3995 hdr=0x49 ok=YES
+[468237 ms] AUDIO MP3 source SD
+[469536 ms] AUDIO MP3 DONE duration=3955ms loops=78641
+[469536 ms] TEST 3 audio-complete duration_ms=3955
+[469537 ms] AUDIO MP3 START /words/en/b.mp3
+[469547 ms] TEST 3 audio-start /words/en/b.mp3
+[MP3] Validate SD /words/en/b.mp3 sz=3887 hdr=0x49 ok=YES
+[471022 ms] AUDIO MP3 source SD
+[472282 ms] AUDIO MP3 DONE duration=2735ms loops=76195
+[472282 ms] TEST 3 audio-complete duration_ms=2735
+[472283 ms] AUDIO MP3 START /words/en/a.mp3
+[472293 ms] TEST 3 audio-start /words/en/a.mp3
+[MP3] Validate SD /words/en/a.mp3 sz=3671 hdr=0x49 ok=YES
+[472350 ms] AUDIO MP3 source SD
+[473537 ms] AUDIO MP3 DONE duration=1244ms loops=71768
+[473537 ms] TEST 3 audio-complete duration_ms=1244
+[473758 ms] AUDIO MP3 START /words/en/m.mp3
+[473758 ms] TEST 3 audio-start /words/en/m.mp3
+[MP3] Validate SD /words/en/m.mp3 sz=3995 hdr=0x49 ok=YES
+[476407 ms] AUDIO MP3 source SD
+[477706 ms] AUDIO MP3 DONE duration=3948ms loops=78639
+[477706 ms] TEST 3 audio-complete duration_ms=3948
+[477707 ms] AUDIO MP3 START /words/en/a.mp3
+[477717 ms] TEST 3 audio-start /words/en/a.mp3
+[MP3] Validate SD /words/en/a.mp3 sz=3671 hdr=0x49 ok=YES
+[477774 ms] AUDIO MP3 source SD
+[478961 ms] AUDIO MP3 DONE duration=1244ms loops=71766
+[478961 ms] TEST 3 audio-complete duration_ms=1244
+[478962 ms] AUDIO MP3 START /words/en/l.mp3
+[478972 ms] TEST 3 audio-start /words/en/l.mp3
+[MP3] Validate SD /words/en/l.mp3 sz=4103 hdr=0x49 ok=YES
+[481544 ms] AUDIO MP3 source SD
+[482876 ms] AUDIO MP3 DONE duration=3904ms loops=80451
+[482876 ms] TEST 3 audio-complete duration_ms=3904
+[482877 ms] AUDIO MP3 START /words/en/a.mp3
+[482887 ms] TEST 3 audio-start /words/en/a.mp3
+[MP3] Validate SD /words/en/a.mp3 sz=3671 hdr=0x49 ok=YES
+[482944 ms] AUDIO MP3 source SD
+[484131 ms] AUDIO MP3 DONE duration=1244ms loops=71808
+[484131 ms] TEST 3 audio-complete duration_ms=1244
+[484132 ms] AUDIO MP3 START /words/en/w.mp3
+[484142 ms] TEST 3 audio-start /words/en/w.mp3
+[MP3] Validate SD /words/en/w.mp3 sz=4751 hdr=0x49 ok=YES
+[487983 ms] AUDIO MP3 source SD
+[489531 ms] AUDIO MP3 DONE duration=5389ms loops=93487
+[489531 ms] TEST 3 audio-complete duration_ms=5389
+[489532 ms] AUDIO MP3 START /words/en/i.mp3
+[489542 ms] TEST 3 audio-start /words/en/i.mp3
+[MP3] Validate SD /words/en/i.mp3 sz=3671 hdr=0x49 ok=YES
+[491946 ms] AUDIO MP3 source SD
+[493133 ms] AUDIO MP3 DONE duration=3591ms loops=71759
+[493133 ms] TEST 3 audio-complete duration_ms=3591
+[493354 ms] AUDIO MP3 START /words/en/poverty.mp3
+[493354 ms] TEST 3 audio-start /words/en/poverty.mp3
+[MP3] Validate SD /words/en/poverty.mp3 sz=4859 hdr=0x49 ok=YES
+[496416 ms] AUDIO MP3 source SD
+[498003 ms] AUDIO MP3 DONE duration=4649ms loops=95975
+[498003 ms] TEST 3 audio-complete duration_ms=4649
+[498224 ms] AUDIO MP3 START /words/en/blocks.mp3
+[498224 ms] TEST 3 audio-start /words/en/blocks.mp3
+[MP3] Validate SD /words/en/blocks.mp3 sz=4643 hdr=0x49 ok=YES
+[499756 ms] AUDIO MP3 source SD
+[501270 ms] AUDIO MP3 DONE duration=3046ms loops=91746
+[501270 ms] TEST 3 audio-complete duration_ms=3046
+[501491 ms] AUDIO MP3 START /words/en/her.mp3
+[501491 ms] TEST 3 audio-start /words/en/her.mp3
+[MP3] Validate SD /words/en/her.mp3 sz=4319 hdr=0x49 ok=YES
+[503851 ms] AUDIO MP3 source SD
+[503954 ms] BUTTON DOWN DOWN mp3
+[503954 ms] TEST 2 press-detected DOWN
+[503974 ms] BUTTON MP3 interrupted by button
+[503986 ms] AUDIO MP3 DONE duration=2496ms loops=6459
+[503987 ms] TEST 3 audio-complete duration_ms=2496
+[504021 ms] TEST 4 view-scroll-down offset=1
+[504049 ms] AUDIO MP3 START /words/en/grace.mp3
+[504049 ms] TEST 3 audio-start /words/en/grace.mp3
+[MP3] Validate SD /words/en/grace.mp3 sz=4535 hdr=0x49 ok=YES
+[506359 ms] AUDIO MP3 source SD
+[506361 ms] BUTTON DOWN UP mp3
+[506361 ms] TEST 2 release-detected DOWN
+[507840 ms] AUDIO MP3 DONE duration=3791ms loops=88887
+[507840 ms] TEST 3 audio-complete duration_ms=3791
+[508061 ms] AUDIO MP3 START /words/en/aged.mp3
+[508061 ms] TEST 3 audio-start /words/en/aged.mp3
+[MP3] Validate SD /words/en/aged.mp3 sz=4535 hdr=0x49 ok=YES
+[509399 ms] AUDIO MP3 source SD
+[510874 ms] AUDIO MP3 DONE duration=2813ms loops=89236
+[510874 ms] TEST 3 audio-complete duration_ms=2813
+[511315 ms] AUDIO MP3 START /words/en/is.mp3
+[511315 ms] TEST 3 audio-start /words/en/is.mp3
+[MP3] Validate SD /words/en/is.mp3 sz=4211 hdr=0x49 ok=YES
+[513847 ms] AUDIO MP3 source SD
+[515218 ms] AUDIO MP3 DONE duration=3903ms loops=82955
+[515218 ms] TEST 3 audio-complete duration_ms=3903
+[515439 ms] AUDIO MP3 START /words/en/a.mp3
+[515439 ms] TEST 3 audio-start /words/en/a.mp3
+[MP3] Validate SD /words/en/a.mp3 sz=3671 hdr=0x49 ok=YES
+[515496 ms] AUDIO MP3 source SD
+[516683 ms] AUDIO MP3 DONE duration=1244ms loops=71772
+[516683 ms] TEST 3 audio-complete duration_ms=1244
+[516904 ms] AUDIO MP3 START /words/en/blind.mp3
+[516904 ms] TEST 3 audio-start /words/en/blind.mp3
+[MP3] Validate SD /words/en/blind.mp3 sz=4643 hdr=0x49 ok=YES
+[518439 ms] AUDIO MP3 source SD
+[519954 ms] AUDIO MP3 DONE duration=3050ms loops=91545
+[519954 ms] TEST 3 audio-complete duration_ms=3050
+[520175 ms] AUDIO MP3 START /words/en/girl.mp3
+[520175 ms] TEST 3 audio-start /words/en/girl.mp3
+[MP3] Validate SD /words/en/girl.mp3 sz=4427 hdr=0x49 ok=YES
+[522462 ms] AUDIO MP3 source SD
+[523905 ms] AUDIO MP3 DONE duration=3730ms loops=87243
+[523905 ms] TEST 3 audio-complete duration_ms=3730
+[524126 ms] AUDIO MP3 START /words/en/from.mp3
+[524126 ms] TEST 3 audio-start /words/en/from.mp3
+[MP3] Validate SD /words/en/from.mp3 sz=4427 hdr=0x49 ok=YES
+[526385 ms] AUDIO MP3 source SD
+[527828 ms] AUDIO MP3 DONE duration=3702ms loops=87208
+[527828 ms] TEST 3 audio-complete duration_ms=3702
+[528049 ms] AUDIO MP3 START /words/en/z.mp3
+[528049 ms] TEST 3 audio-start /words/en/z.mp3
+[MP3] Validate SD /words/en/z.mp3 sz=3887 hdr=0x49 ok=YES
+[531959 ms] AUDIO MP3 source SD
+[533218 ms] AUDIO MP3 DONE duration=5169ms loops=76211
+[533218 ms] TEST 3 audio-complete duration_ms=5169
+[533219 ms] AUDIO MP3 START /words/en/o.mp3
+[533229 ms] TEST 3 audio-start /words/en/o.mp3
+[MP3] Validate SD /words/en/o.mp3 sz=3671 hdr=0x49 ok=YES
+[536079 ms] AUDIO MP3 source SD
+[537266 ms] AUDIO MP3 DONE duration=4037ms loops=71763
+[537266 ms] TEST 3 audio-complete duration_ms=4037
+[537267 ms] AUDIO MP3 START /words/en/m.mp3
+[537277 ms] TEST 3 audio-start /words/en/m.mp3
+[MP3] Validate SD /words/en/m.mp3 sz=3995 hdr=0x49 ok=YES
+[539937 ms] AUDIO MP3 source SD
+[541236 ms] AUDIO MP3 DONE duration=3959ms loops=78636
+[541236 ms] TEST 3 audio-complete duration_ms=3959
+[541237 ms] AUDIO MP3 START /words/en/b.mp3
+[541247 ms] TEST 3 audio-start /words/en/b.mp3
+[MP3] Validate SD /words/en/b.mp3 sz=3887 hdr=0x49 ok=YES
+[542728 ms] AUDIO MP3 source SD
+[543987 ms] AUDIO MP3 DONE duration=2740ms loops=76187
+[543987 ms] TEST 3 audio-complete duration_ms=2740
+[543988 ms] AUDIO MP3 START /words/en/a.mp3
+[543998 ms] TEST 3 audio-start /words/en/a.mp3
+[MP3] Validate SD /words/en/a.mp3 sz=3671 hdr=0x49 ok=YES
+[544055 ms] AUDIO MP3 source SD
+[545242 ms] AUDIO MP3 DONE duration=1244ms loops=71772
+[545242 ms] TEST 3 audio-complete duration_ms=1244
+[545463 ms] AUDIO MP3 START /words/en/m.mp3
+[545463 ms] TEST 3 audio-start /words/en/m.mp3
+[MP3] Validate SD /words/en/m.mp3 sz=3995 hdr=0x49 ok=YES
+[548114 ms] AUDIO MP3 source SD
+[549413 ms] AUDIO MP3 DONE duration=3950ms loops=78631
+[549413 ms] TEST 3 audio-complete duration_ms=3950
+[549414 ms] AUDIO MP3 START /words/en/a.mp3
+[549424 ms] TEST 3 audio-start /words/en/a.mp3
+[MP3] Validate SD /words/en/a.mp3 sz=3671 hdr=0x49 ok=YES
+[549481 ms] AUDIO MP3 source SD
+[550668 ms] AUDIO MP3 DONE duration=1244ms loops=71769
+[550668 ms] TEST 3 audio-complete duration_ms=1244
+[550669 ms] AUDIO MP3 START /words/en/l.mp3
+[550679 ms] TEST 3 audio-start /words/en/l.mp3
+[MP3] Validate SD /words/en/l.mp3 sz=4103 hdr=0x49 ok=YES
+[553250 ms] AUDIO MP3 source SD
+[554581 ms] AUDIO MP3 DONE duration=3902ms loops=80448
+[554581 ms] TEST 3 audio-complete duration_ms=3902
+[554582 ms] AUDIO MP3 START /words/en/a.mp3
+[554592 ms] TEST 3 audio-start /words/en/a.mp3
+[MP3] Validate SD /words/en/a.mp3 sz=3671 hdr=0x49 ok=YES
+[554649 ms] AUDIO MP3 source SD
+[555836 ms] AUDIO MP3 DONE duration=1244ms loops=71785
+[555836 ms] TEST 3 audio-complete duration_ms=1244
+[555837 ms] AUDIO MP3 START /words/en/w.mp3
+[555847 ms] TEST 3 audio-start /words/en/w.mp3
+[MP3] Validate SD /words/en/w.mp3 sz=4751 hdr=0x49 ok=YES
+[559692 ms] AUDIO MP3 source SD
+[561239 ms] AUDIO MP3 DONE duration=5392ms loops=93454
+[561239 ms] TEST 3 audio-complete duration_ms=5392
+[561240 ms] AUDIO MP3 START /words/en/i.mp3
+[561250 ms] TEST 3 audio-start /words/en/i.mp3
+[MP3] Validate SD /words/en/i.mp3 sz=3671 hdr=0x49 ok=YES
+[563655 ms] AUDIO MP3 source SD
+[564842 ms] AUDIO MP3 DONE duration=3592ms loops=71783
+[564842 ms] TEST 3 audio-complete duration_ms=3592
+[565063 ms] AUDIO MP3 START /words/en/poverty.mp3
+[565063 ms] TEST 3 audio-start /words/en/poverty.mp3
+[MP3] Validate SD /words/en/poverty.mp3 sz=4859 hdr=0x49 ok=YES
+[568126 ms] AUDIO MP3 source SD
+[569713 ms] AUDIO MP3 DONE duration=4650ms loops=95996
+[569713 ms] TEST 3 audio-complete duration_ms=4650
+[569934 ms] AUDIO MP3 START /words/en/blocks.mp3
+[569934 ms] TEST 3 audio-start /words/en/blocks.mp3
+[MP3] Validate SD /words/en/blocks.mp3 sz=4643 hdr=0x49 ok=YES
+[571467 ms] AUDIO MP3 source SD
+[572981 ms] AUDIO MP3 DONE duration=3047ms loops=91734
+[572981 ms] TEST 3 audio-complete duration_ms=3047
+[573202 ms] AUDIO MP3 START /words/en/her.mp3
+[573202 ms] TEST 3 audio-start /words/en/her.mp3
+[MP3] Validate SD /words/en/her.mp3 sz=4319 hdr=0x49 ok=YES
+[575562 ms] AUDIO MP3 source SD
+[576966 ms] AUDIO MP3 DONE duration=3764ms loops=84840
+[576966 ms] TEST 3 audio-complete duration_ms=3764
+[577187 ms] AUDIO MP3 START /words/en/path.mp3
+[577187 ms] TEST 3 audio-start /words/en/path.mp3
+[MP3] Validate SD /words/en/path.mp3 sz=4427 hdr=0x49 ok=YES
+[580143 ms] AUDIO MP3 source SD
+[581586 ms] AUDIO MP3 DONE duration=4399ms loops=87389
+[581586 ms] TEST 3 audio-complete duration_ms=4399
+[581807 ms] AUDIO MP3 START /words/en/to.mp3
+[581807 ms] TEST 3 audio-start /words/en/to.mp3
+[MP3] Validate SD /words/en/to.mp3 sz=3887 hdr=0x49 ok=YES
+[585519 ms] AUDIO MP3 source SD
+[586779 ms] AUDIO MP3 DONE duration=4972ms loops=76183
+[586779 ms] TEST 3 audio-complete duration_ms=4972
+[587000 ms] AUDIO MP3 START /words/en/university.mp3
+[587000 ms] TEST 3 audio-start /words/en/university.mp3
+[MP3] Validate SD /words/en/university.mp3 sz=5615 hdr=0x49 ok=YES
+[590787 ms] AUDIO MP3 source SD
+[592622 ms] AUDIO MP3 DONE duration=5622ms loops=111034
+[592622 ms] TEST 3 audio-complete duration_ms=5622
+[592843 ms] AUDIO MP3 START /words/en/yet.mp3
+[592843 ms] TEST 3 audio-start /words/en/yet.mp3
+[MP3] Validate SD /words/en/yet.mp3 sz=4211 hdr=0x49 ok=YES
+[596753 ms] AUDIO MP3 source SD
+[598123 ms] AUDIO MP3 DONE duration=5280ms loops=82881
+[598123 ms] TEST 3 audio-complete duration_ms=5280
+[598344 ms] AUDIO MP3 START /words/en/she.mp3
+[598344 ms] TEST 3 audio-start /words/en/she.mp3
+[MP3] Validate SD /words/en/she.mp3 sz=3887 hdr=0x49 ok=YES
+[601776 ms] AUDIO MP3 source SD
+[603036 ms] AUDIO MP3 DONE duration=4692ms loops=76201
+[603036 ms] TEST 3 audio-complete duration_ms=4692
+[603257 ms] AUDIO MP3 START /words/en/b.mp3
+[603257 ms] TEST 3 audio-start /words/en/b.mp3
+[MP3] Validate SD /words/en/b.mp3 sz=3887 hdr=0x49 ok=YES
+[604732 ms] AUDIO MP3 source SD
+[605992 ms] AUDIO MP3 DONE duration=2735ms loops=76195
+[605992 ms] TEST 3 audio-complete duration_ms=2735
+[605993 ms] AUDIO MP3 START /words/en/u.mp3
+[606003 ms] TEST 3 audio-start /words/en/u.mp3
+[MP3] Validate SD /words/en/u.mp3 sz=3887 hdr=0x49 ok=YES
+[609773 ms] AUDIO MP3 source SD
+[611032 ms] AUDIO MP3 DONE duration=5029ms loops=76127
+[611032 ms] TEST 3 audio-complete duration_ms=5029
+[611033 ms] AUDIO MP3 START /words/en/r.mp3
+[611043 ms] TEST 3 audio-start /words/en/r.mp3
+[MP3] Validate SD /words/en/r.mp3 sz=4103 hdr=0x49 ok=YES
+[614223 ms] AUDIO MP3 source SD
+[615555 ms] AUDIO MP3 DONE duration=4512ms loops=80379
+[615555 ms] TEST 3 audio-complete duration_ms=4512
+[615556 ms] AUDIO MP3 START /words/en/n.mp3
+[615566 ms] TEST 3 audio-start /words/en/n.mp3
+[MP3] Validate SD /words/en/n.mp3 sz=3995 hdr=0x49 ok=YES
+[618368 ms] AUDIO MP3 source SD
+[619666 ms] AUDIO MP3 DONE duration=4100ms loops=78581
+[619666 ms] TEST 3 audio-complete duration_ms=4100
+[619667 ms] AUDIO MP3 START /words/en/s.mp3
+[619677 ms] TEST 3 audio-start /words/en/s.mp3
+[MP3] Validate SD /words/en/s.mp3 sz=3995 hdr=0x49 ok=YES
+[623026 ms] AUDIO MP3 source SD
+[624325 ms] AUDIO MP3 DONE duration=4648ms loops=78689
+[624325 ms] TEST 3 audio-complete duration_ms=4648
+[624546 ms] AUDIO MP3 START /words/en/with.mp3
+[624546 ms] TEST 3 audio-start /words/en/with.mp3
+[MP3] Validate SD /words/en/with.mp3 sz=4103 hdr=0x49 ok=YES
+[628437 ms] AUDIO MP3 source SD
+[629768 ms] AUDIO MP3 DONE duration=5222ms loops=80482
+[629768 ms] TEST 3 audio-complete duration_ms=5222
+[629989 ms] AUDIO MP3 START /words/en/passion.mp3
+[629989 ms] TEST 3 audio-start /words/en/passion.mp3
+[MP3] Validate SD /words/en/passion.mp3 sz=4859 hdr=0x49 ok=YES
+[632936 ms] AUDIO MP3 source SD
+[634522 ms] AUDIO MP3 DONE duration=4533ms loops=95940
+[634522 ms] TEST 3 audio-complete duration_ms=4533
+[634743 ms] AUDIO MP3 START /words/en/to.mp3
+[634743 ms] TEST 3 audio-start /words/en/to.mp3
+[MP3] Validate SD /words/en/to.mp3 sz=3887 hdr=0x49 ok=YES
+[638455 ms] AUDIO MP3 source SD
+[639714 ms] AUDIO MP3 DONE duration=4971ms loops=76200
+[639714 ms] TEST 3 audio-complete duration_ms=4971
+[639935 ms] AUDIO MP3 START /words/en/become.mp3
+[639935 ms] TEST 3 audio-start /words/en/become.mp3
+[MP3] Validate SD /words/en/become.mp3 sz=4751 hdr=0x49 ok=YES
+[641438 ms] AUDIO MP3 source SD
+[642985 ms] AUDIO MP3 DONE duration=3050ms loops=93486
+[642985 ms] TEST 3 audio-complete duration_ms=3050
+[643206 ms] AUDIO MP3 START /words/en/a.mp3
+[643206 ms] TEST 3 audio-start /words/en/a.mp3
+[MP3] Validate SD /words/en/a.mp3 sz=3671 hdr=0x49 ok=YES
+[643263 ms] AUDIO MP3 source SD
+[644450 ms] AUDIO MP3 DONE duration=1244ms loops=71806
+[644450 ms] TEST 3 audio-complete duration_ms=1244
+[644671 ms] AUDIO MP3 START /words/en/disability.mp3
+[644671 ms] TEST 3 audio-start /words/en/disability.mp3
+[MP3] Validate SD /words/en/disability.mp3 sz=5399 hdr=0x49 ok=YES
+[646648 ms] AUDIO MP3 source SD
+[648411 ms] AUDIO MP3 DONE duration=3740ms loops=106584
+[648411 ms] TEST 3 audio-complete duration_ms=3740
+[648632 ms] AUDIO MP3 START /words/en/rights.mp3
+[648632 ms] TEST 3 audio-start /words/en/rights.mp3
+[MP3] Validate SD /words/en/rights.mp3 sz=4427 hdr=0x49 ok=YES
+[651961 ms] AUDIO MP3 source SD
+[653403 ms] AUDIO MP3 DONE duration=4771ms loops=87421
+[653403 ms] TEST 3 audio-complete duration_ms=4771
+[653624 ms] AUDIO MP3 START /words/en/advocate.mp3
+[653624 ms] TEST 3 audio-start /words/en/advocate.mp3
+[MP3] Validate SD /words/en/advocate.mp3 sz=4967 hdr=0x49 ok=YES
+[654955 ms] AUDIO MP3 source SD
+[656574 ms] AUDIO MP3 DONE duration=2950ms loops=97986
+[656574 ms] TEST 3 audio-complete duration_ms=2950
+[656795 ms] AUDIO MP3 START /words/en/giving.mp3
+[656795 ms] TEST 3 audio-start /words/en/giving.mp3
+[MP3] Validate SD /words/en/giving.mp3 sz=4643 hdr=0x49 ok=YES
+[659091 ms] AUDIO MP3 source SD
+[660605 ms] AUDIO MP3 DONE duration=3810ms loops=91549
+[660605 ms] TEST 3 audio-complete duration_ms=3810
+[660826 ms] AUDIO MP3 START /words/en/voice.mp3
+[660826 ms] TEST 3 audio-start /words/en/voice.mp3
+[MP3] Validate SD /words/en/voice.mp3 sz=4427 hdr=0x49 ok=YES
+[664655 ms] AUDIO MP3 source SD
+[666098 ms] AUDIO MP3 DONE duration=5272ms loops=87336
+[666098 ms] TEST 3 audio-complete duration_ms=5272
+[666319 ms] AUDIO MP3 START /words/en/to.mp3
+[666319 ms] TEST 3 audio-start /words/en/to.mp3
+[MP3] Validate SD /words/en/to.mp3 sz=3887 hdr=0x49 ok=YES
+[670018 ms] AUDIO MP3 source SD
+[671278 ms] AUDIO MP3 DONE duration=4959ms loops=76185
+[671278 ms] TEST 3 audio-complete duration_ms=4959
+[671499 ms] AUDIO MP3 START /words/en/the.mp3
+[671499 ms] TEST 3 audio-start /words/en/the.mp3
+[MP3] Validate SD /words/en/the.mp3 sz=3779 hdr=0x49 ok=YES
+[675166 ms] AUDIO MP3 source SD
+[676393 ms] AUDIO MP3 DONE duration=4894ms loops=74197
+[676393 ms] TEST 3 audio-complete duration_ms=4894
+[676614 ms] AUDIO MP3 START /words/en/s.mp3
+[676614 ms] TEST 3 audio-start /words/en/s.mp3
+[MP3] Validate SD /words/en/s.mp3 sz=3995 hdr=0x49 ok=YES
+[679957 ms] AUDIO MP3 source SD
+[681256 ms] AUDIO MP3 DONE duration=4642ms loops=78686
+[681256 ms] TEST 3 audio-complete duration_ms=4642
+[681257 ms] AUDIO MP3 START /words/en/i.mp3
+[681267 ms] TEST 3 audio-start /words/en/i.mp3
+[MP3] Validate SD /words/en/i.mp3 sz=3671 hdr=0x49 ok=YES
+[683671 ms] AUDIO MP3 source SD
+[684859 ms] AUDIO MP3 DONE duration=3592ms loops=71776
+[684859 ms] TEST 3 audio-complete duration_ms=3592
+[684860 ms] AUDIO MP3 START /words/en/d.mp3
+[684870 ms] TEST 3 audio-start /words/en/d.mp3
+[MP3] Validate SD /words/en/d.mp3 sz=3887 hdr=0x49 ok=YES
+[686750 ms] AUDIO MP3 source SD
+[688009 ms] AUDIO MP3 DONE duration=3139ms loops=76177
+[688009 ms] TEST 3 audio-complete duration_ms=3139
+[688010 ms] AUDIO MP3 START /words/en/e.mp3
+[688020 ms] TEST 3 audio-start /words/en/e.mp3
+[MP3] Validate SD /words/en/e.mp3 sz=3671 hdr=0x49 ok=YES
+[690056 ms] AUDIO MP3 source SD
+[691244 ms] AUDIO MP3 DONE duration=3224ms loops=71770
+[691244 ms] TEST 3 audio-complete duration_ms=3224
+[691245 ms] AUDIO MP3 START /words/en/l.mp3
+[691255 ms] TEST 3 audio-start /words/en/l.mp3
+[MP3] Validate SD /words/en/l.mp3 sz=4103 hdr=0x49 ok=YES
+[693832 ms] AUDIO MP3 source SD
+[695163 ms] AUDIO MP3 DONE duration=3908ms loops=80444
+[695163 ms] TEST 3 audio-complete duration_ms=3908
+[695164 ms] AUDIO MP3 START /words/en/i.mp3
+[695174 ms] TEST 3 audio-start /words/en/i.mp3
+[MP3] Validate SD /words/en/i.mp3 sz=3671 hdr=0x49 ok=YES
+[697583 ms] AUDIO MP3 source SD
+[698770 ms] AUDIO MP3 DONE duration=3596ms loops=71767
+[698770 ms] TEST 3 audio-complete duration_ms=3596
+[698771 ms] AUDIO MP3 START /words/en/n.mp3
+[698781 ms] TEST 3 audio-start /words/en/n.mp3
+[MP3] Validate SD /words/en/n.mp3 sz=3995 hdr=0x49 ok=YES
+[701577 ms] AUDIO MP3 source SD
+[702876 ms] AUDIO MP3 DONE duration=4095ms loops=78628
+[702876 ms] TEST 3 audio-complete duration_ms=4095
+[702877 ms] AUDIO MP3 START /words/en/e.mp3
+[702887 ms] TEST 3 audio-start /words/en/e.mp3
+[MP3] Validate SD /words/en/e.mp3 sz=3671 hdr=0x49 ok=YES
+[704924 ms] AUDIO MP3 source SD
+[706111 ms] AUDIO MP3 DONE duration=3224ms loops=71775
+[706111 ms] TEST 3 audio-complete duration_ms=3224
+[706112 ms] AUDIO MP3 START /words/en/d.mp3
+[706122 ms] TEST 3 audio-start /words/en/d.mp3
+[MP3] Validate SD /words/en/d.mp3 sz=3887 hdr=0x49 ok=YES
+[707998 ms] AUDIO MP3 source SD
+[709257 ms] AUDIO MP3 DONE duration=3135ms loops=76172
+[709257 ms] TEST 3 audio-complete duration_ms=3135
+[PHRASE] >> end_of_note
+[709260][E][vfs_api.cpp:105] open(): /sd/sfx/en/end_of_note.mp3 does not exist, no permits for creation
+[MP3] Validate FS /sfx/en/end_of_note.mp3 sz=8855 hdr=0x49 ok=YES
+[PHRASE] MP3 valid - playing
+[709319 ms] AUDIO MP3 START /sfx/en/end_of_note.mp3
+[709330 ms] TEST 3 audio-start /sfx/en/end_of_note.mp3
+[709361][E][vfs_api.cpp:105] open(): /sd/sfx/en/end_of_note.mp3 does not exist, no permits for creation
+[MP3] Validate FS /sfx/en/end_of_note.mp3 sz=8855 hdr=0x49 ok=YES
+[709414 ms] AUDIO MP3 source LittleFS
+[712319 ms] AUDIO MP3 DONE duration=2989ms loops=177156
+[712319 ms] TEST 3 audio-complete duration_ms=2989

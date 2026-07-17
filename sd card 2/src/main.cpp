@@ -17,7 +17,7 @@
 #define I2S_LRC  27
 #define I2S_DIN  25
 
-#define VOICE_DIR "/voice"
+#define VOICE_DIR "/words/en"
 #define INTRO_PLAY_COUNT 3
 
 SPIClass sdSpi(HSPI);
@@ -93,7 +93,6 @@ void setup() {
   printCardInfo();
   ensureVoiceDir();
 
-  playIntroTest();
   printHelp();
 }
 
@@ -131,9 +130,9 @@ void loop() {
 
 void printHelp() {
   Serial.println();
-  Serial.println("Type a word and press Enter to play /voice/<word>.mp3");
+  Serial.println("Type a word and press Enter to play /words/en/<word>.mp3");
   Serial.println("Commands:");
-  Serial.println("  ls      - list the /voice folder");
+  Serial.println("  ls      - list the /words/en folder");
   Serial.println("  tone    - play a 1 second I2S test tone");
   Serial.println("  stop    - stop current playback");
   Serial.println("  help    - show this help");
@@ -180,8 +179,8 @@ bool ensureVoiceDir() {
     return true;
   }
 
-  Serial.printf("[%lu ms] Could not create %s. Create a folder named voice on the SD card.\n",
-                millis(), VOICE_DIR);
+  Serial.printf("[%lu ms] Could not create %s. Create the folder %s on the SD card.\n",
+                millis(), VOICE_DIR, VOICE_DIR);
   return false;
 }
 
@@ -255,42 +254,13 @@ void playWord(String word, uint32_t enterMs) {
   String path = wordToPath(word);
   Serial.printf("[%lu ms] search started: %s\n", millis(), path.c_str());
 
-  File probe = SD.open(path.c_str(), FILE_READ);
-  if (!probe || probe.isDirectory()) {
-    if (probe) {
-      probe.close();
-    }
-
-    String targetName = baseName(path);
-    String foundPath = findMp3Path(SD, VOICE_DIR, targetName, 2);
-    if (foundPath.length() == 0) {
-      Serial.printf("[%lu ms] search done: not found (%lu ms after enter)\n", millis(), millis() - enterMs);
-      Serial.printf("[%lu ms] Type ls to see the exact files under %s.\n", millis(), VOICE_DIR);
-      return;
-    }
-
-    Serial.printf("[%lu ms] fallback match: %s\n", millis(), foundPath.c_str());
-    path = foundPath;
-    probe = SD.open(path.c_str(), FILE_READ);
-    if (!probe || probe.isDirectory()) {
-      if (probe) {
-        probe.close();
-      }
-      Serial.printf("[%lu ms] fallback path could not be opened: %s\n", millis(), path.c_str());
-      return;
-    }
-  }
-
-  size_t bytes = probe.size();
-  probe.close();
-  Serial.printf("[%lu ms] search done: found %u bytes (%lu ms after enter)\n",
-                millis(), static_cast<unsigned int>(bytes), millis() - enterMs);
-
   audioFile = new AudioFileSourceSD(path.c_str());
   mp3 = new AudioGeneratorMP3();
 
   if (!mp3->begin(audioFile, audioOut)) {
-    Serial.printf("[%lu ms] playback failed to start: %s\n", millis(), path.c_str());
+    Serial.printf("[%lu ms] search done: not found (%lu ms after enter)\n", millis(), millis() - enterMs);
+    Serial.printf("[%lu ms] Type ls to see the exact files under %s.\n", millis(), VOICE_DIR);
+    Serial.printf("[%lu ms] Make sure you type the exact file name without .mp3\n", millis());
     stopPlayback("start failed");
     return;
   }

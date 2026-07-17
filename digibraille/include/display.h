@@ -7,11 +7,16 @@
 
 extern Adafruit_SH1106G display;
 
-// ─── braille decode needed for live preview ──────────────────
-#define BRAILLE_CAPITAL_IND  0b100000
-#define BRAILLE_NUMBER_IND   0b111100
-
-inline char _dispDecodeBraille(uint8_t code, bool& capNext, bool& numMode);
+// Forward declaration only — NOT a full #include "braille.h" here.
+// braille.h calls drawBraillePad()/drawToast() (defined below in this
+// file), so a two-way #include creates a circular dependency: whichever
+// header gets pulled in first has its functions used by the other before
+// they're declared. Declaring just the one symbol this file actually
+// needs (the real decodeBraille(), defined in braille.h) breaks that
+// cycle. The live preview in drawBraillePad() below calls this exact
+// function on local copies of capitalNext/numberMode so the preview
+// can't mutate real typing state.
+char decodeBraille(uint8_t code, bool& capNext, bool& numMode);
 
 void drawStatusBar() {
 }
@@ -31,8 +36,8 @@ void drawBraillePad(const char* modeLabel) {
   }
   uint8_t liveCode = 0;
   for (int i = 0; i < 6; i++) if (dots[i]) liveCode |= (1<<i);
-  bool dC = capitalNext, dN = numberMode;
-  char liveChar = (liveCode == 0) ? ' ' : _dispDecodeBraille(liveCode, dC, dN);
+  bool dC = capitalNext, dN = numberMode; // local copies — preview must not mutate real state
+  char liveChar = (liveCode == 0) ? ' ' : decodeBraille(liveCode, dC, dN);
   display.setTextSize(2); display.setCursor(32, 6);
   if (cellBuilding) {
     if      (liveCode == BRAILLE_CAPITAL_IND) display.print("^");
@@ -62,31 +67,6 @@ void drawBraillePad(const char* modeLabel) {
     if (li == numLines-1) { int cx = row.length()*6; display.fillRect(cx, screenY[i]+7, 5, 2, SH110X_WHITE); }
   }
   display.display();
-}
-
-// Minimal decode just for live preview in drawBraillePad
-inline char _dispDecodeLetter(uint8_t c) {
-  switch (c) {
-    case 0b000001: return 'a'; case 0b000011: return 'b'; case 0b001001: return 'c';
-    case 0b011001: return 'd'; case 0b010001: return 'e'; case 0b001011: return 'f';
-    case 0b011011: return 'g'; case 0b010011: return 'h'; case 0b001010: return 'i';
-    case 0b011010: return 'j'; case 0b000101: return 'k'; case 0b000111: return 'l';
-    case 0b001101: return 'm'; case 0b011101: return 'n'; case 0b010101: return 'o';
-    case 0b001111: return 'p'; case 0b011111: return 'q'; case 0b010111: return 'r';
-    case 0b001110: return 's'; case 0b011110: return 't'; case 0b100101: return 'u';
-    case 0b100111: return 'v'; case 0b111010: return 'w'; case 0b101101: return 'x';
-    case 0b111101: return 'y'; case 0b110101: return 'z'; case 0b110010: return '.';
-    case 0b010000: return '!'; case 0b001100: return '?';
-    default: return '?';
-  }
-}
-inline char _dispDecodeBraille(uint8_t code, bool& capNext, bool& numMode) {
-  if (code == 0) return ' ';
-  if (code == BRAILLE_CAPITAL_IND) return '^';
-  if (code == BRAILLE_NUMBER_IND)  return '#';
-  char c = _dispDecodeLetter(code);
-  if (capNext && c >= 'a' && c <= 'z') { capNext = false; return (char)(c-32); }
-  return c;
 }
 
 void drawStartup() {
@@ -133,6 +113,14 @@ void drawToast(const char* msg) {
   display.drawRect(4, 20, 120, 24, SH110X_WHITE);
   display.setCursor(10, 28); display.print(msg);
   display.display(); delay(1400);
+}
+
+void drawSdWarning() {
+  display.clearDisplay(); display.setFont(); display.setTextColor(SH110X_WHITE);
+  display.drawRect(2, 12, 124, 40, SH110X_WHITE);
+  display.setCursor(8, 22); display.print("SD card not found");
+  display.setCursor(8, 34); display.print("Saving temporarily");
+  display.display();
 }
 
 void drawReadNotes() {

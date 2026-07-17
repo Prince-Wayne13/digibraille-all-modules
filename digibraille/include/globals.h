@@ -116,9 +116,20 @@ inline void debugLogButtonTransitions(const char* context) {
 #define CONFIG_PATH   "/config.txt"
 
 // ─── TIMING ──────────────────────────────────────────────────
-#define UNDO_DBLCLICK_MS   650
-#define LONG_PRESS_WARN_MS 650
-#define AUTOSAVE_MS       5000
+#define BACK_LONG_PRESS_MS   650   // hold BACK this long -> exit pad, save draft
+#define LONG_PRESS_WARN_MS   BACK_LONG_PRESS_MS
+
+// BACK double-tap window for "clear word buffer" in the Braille pad.
+// A second tap arriving sooner than UNDO_DBLTAP_MIN_MS is treated as bounce
+// / an accidental re-trigger on release, not a deliberate second press, and
+// falls back to a plain single-tap delete-char.
+// A second tap arriving later than UNDO_DBLTAP_MAX_MS is "too late" — the
+// first tap has already resolved as a single-tap delete, and this tap
+// starts its own fresh single-tap timer instead.
+// Only taps landing strictly between the two count as a deliberate double-tap.
+#define UNDO_DBLTAP_MIN_MS   150
+#define UNDO_DBLTAP_MAX_MS   600
+#define AUTOSAVE_MS         5000
 
 // ─── LANGUAGE ────────────────────────────────────────────────
 extern bool langEnglish;
@@ -153,6 +164,13 @@ extern String aiImprovedNote;
 extern int    noteScrollOffset;
 
 // ─── BRAILLE STATE ───────────────────────────────────────────
+// Special 6-dot cell codes. Defined here (not in braille.h) because both
+// braille.h and display.h need them, and neither header includes the
+// other (see the forward-declaration notes in each — a two-way #include
+// between them caused a circular-dependency build failure).
+#define BRAILLE_CAPITAL_IND  0b100000
+#define BRAILLE_NUMBER_IND   0b111100
+
 extern bool          dots[6];
 extern bool          cellBuilding;
 extern bool          dotPrev[6];
@@ -182,6 +200,7 @@ struct AudioFetchJob { char path[64]; char text[512]; };
 extern QueueHandle_t audioFetchQueue;
 extern volatile bool audioFetchIdle;
 extern bool sdReady;
+extern bool sdWarningPending;
 
 // ─── PHRASE TABLE ────────────────────────────────────────────
 struct Phrase { const char* name; const char* en; const char* ch; };
@@ -190,20 +209,34 @@ extern const int    PHRASE_COUNT;
 
 // ─── INLINE HELPERS (no audio library deps) ──────────────────
 inline String getNoteTitle(int i) {
-  String n = noteList[i]; int nl = n.indexOf('\n');
+  const String& n = noteList[i]; int nl = n.indexOf('\n');
   return (nl < 0) ? n : n.substring(0, nl);
 }
 inline String getNoteBody(int i) {
-  String n = noteList[i]; int nl = n.indexOf('\n');
+  const String& n = noteList[i]; int nl = n.indexOf('\n');
   return (nl < 0) ? "" : n.substring(nl + 1);
 }
 inline String noteTxtPath(int i) { return String(NOTES_FOLDER) + "/note" + String(i) + ".txt"; }
-inline String noteMp3Path(int i) { return String(NOTES_FOLDER) + "/note" + String(i) + ".mp3"; }
-inline String noteTitleMp3Path(int i) { return String(NOTES_FOLDER) + "/note" + String(i) + "_title.mp3"; }
-inline String sfxPath(const char* name) { return String(SFX_EN_FOLDER) + "/" + name + ".mp3"; }
+// Note body audio: NOT a single mp3 file. A "chain" is a small text plan,
+// one line per playback unit, built once at save time and replayed on
+// every open — see buildNoteAudioChain()/playNoteAudioChain() in
+// mp3_player.cpp for the format and why. Replaces the old single-mp3-file
+// idea (noteMp3Path), which no code ever actually produced.
+inline String noteChainPath(int i) { return String(NOTES_FOLDER) + "/note" + String(i) + "_chain.txt"; }
+// Note title audio: same pre-built chain as the body (W:/L:/SP units), so a
+// title like "Grace" resolves against the recorded asset library (a whole
+// "grace.mp3" if present, else letter-by-letter) instead of relying on a
+// never-generated note{N}_title.mp3 file. Built once at save time / migrated
+// at boot alongside the body chain.
+inline String noteTitleChainPath(int i) { return String(NOTES_FOLDER) + "/note" + String(i) + "_title_chain.txt"; }
+inline String sfxPath(const char* name) {
+  return String(langEnglish ? SFX_EN_FOLDER : SFX_CH_FOLDER) + "/" + name + ".mp3";
+}
 inline const char* menuLabel(int i) { return langEnglish ? menuEN[i] : menuCH[i]; }
 inline const char* phraseEN(const char* name) {
   for (int i = 0; i < PHRASE_COUNT; i++)
     if (strcmp(PHRASES[i].name, name) == 0) return PHRASES[i].en;
   return name;
 }
+
+void enterMainMenu(bool speakHighlighted = true);

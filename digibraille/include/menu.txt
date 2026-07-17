@@ -10,7 +10,7 @@ note_saved
 nothing_typed
 cleared
 undo
-undo_sentence
+undo_word
 capital
 number
 space

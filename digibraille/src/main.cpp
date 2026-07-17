@@ -66,6 +66,7 @@ unsigned long lastAutosave     = 0;
 QueueHandle_t audioFetchQueue = nullptr;
 volatile bool  audioFetchIdle   = true;
 bool          sdReady          = false;
+bool          sdWarningPending = false;
 
 const char* menuEN[] = { "New note", "Read Notes", "Language" };
 const char* menuCH[] = { "Lemba latsopano", "Werenga malemba", "Chilankhulo" };
@@ -82,7 +83,7 @@ const Phrase PHRASES[] = {
   { "nothing_typed",   "Nothing typed.",                "Palibe chalembedwa."             },
   { "cleared",         "Cleared.",                      "Zachotsedwa."                    },
   { "undo",            "Undo.",                         "Bwezerani."                      },
-  { "undo_sentence",   "Undo sentence.",                "Bwezerani mawu."                 },
+  { "undo_word",       "Undo word.",                    "Bwezerani mawu."                 },
   { "capital",         "Capital.",                      "Kalata yaikulu."                 },
   { "number",          "Number.",                       "Nambala."                        },
   { "space",           "Space.",                        "Mpata."                          },
@@ -122,6 +123,99 @@ void showStatus(const char* line1, const char* line2 = "", const char* line3 = "
   Serial.println();
 }
 
+// ─── FILESYSTEM DIAGNOSTICS ───────────────────────────────────
+// The recursive tree-printer and the totals block above it used to be
+// duplicated verbatim in both setup() and the "fs" serial command.
+// Consolidated here so there's exactly one implementation to maintain —
+// same output as before, called from both places.
+static void printFsTree(File dir, int depth) {
+  File f = dir.openNextFile();
+  while (f) {
+    for (int i = 0; i < depth; i++) Serial.print(F("  "));
+    if (f.isDirectory()) {
+      Serial.print(F("[")); Serial.print(f.name()); Serial.println(F("]"));
+      printFsTree(f, depth + 1);
+    } else {
+      Serial.print(f.name());
+      Serial.print(F("  ")); Serial.print(f.size()); Serial.println(F(" B"));
+    }
+    f = dir.openNextFile();
+  }
+}
+
+static void dumpFilesystemInfo(const char* headerLabel) {
+  Serial.println();
+  Serial.print(F("── ")); Serial.print(headerLabel); Serial.println(F(" ──────────────────"));
+  Serial.print(F("  Total : ")); Serial.print(LittleFS.totalBytes()); Serial.println(F(" bytes"));
+  Serial.print(F("  Used  : ")); Serial.print(LittleFS.usedBytes());  Serial.println(F(" bytes"));
+  Serial.print(F("  Free  : ")); Serial.print(LittleFS.totalBytes() - LittleFS.usedBytes()); Serial.println(F(" bytes"));
+  Serial.print(F("  Used% : ")); Serial.print((LittleFS.usedBytes() * 100) / LittleFS.totalBytes()); Serial.println(F("%"));
+  Serial.println(F("── Files ──────────────────────────"));
+  File fsRoot = LittleFS.open("/");
+  printFsTree(fsRoot, 0);
+  Serial.println(F("──────────────────────────────────\n"));
+}
+
+// ─── AUDIO ASSET DIAGNOSTICS ─────────────────────────────────
+// The resolver searches word clips across several base folders, in priority
+// order: /words/<lang> (canonical SD word audio, changes.txt §6), /voice/<lang>
+// (alternate SD naming), /sfx/<lang> (legacy LittleFS letter/system assets),
+// /data/<lang> (legacy fallback) — each on SD then LittleFS. This dumps the
+// actual contents of those folders and probes a few known words so a
+// missing/misplaced asset is obvious.
+static void diagListDir(const char* label, fs::FS& fs, const char* path, int maxEntries) {
+  File d = fs.open(path);
+  if (!d || !d.isDirectory()) {
+    Serial.print(F("  [")); Serial.print(label); Serial.print(F("] "));
+    Serial.print(path); Serial.println(F(": missing or not a directory"));
+    return;
+  }
+  Serial.print(F("  [")); Serial.print(label); Serial.print(F("] "));
+  Serial.print(path); Serial.println(F(":"));
+  File f = d.openNextFile();
+  int n = 0;
+  while (f && n < maxEntries) {
+    if (!f.isDirectory()) {
+      Serial.print(F("    ")); Serial.print(f.name());
+      Serial.print(F(" ")); Serial.println(f.size());
+      n++;
+    }
+    f = d.openNextFile();
+  }
+  if (n >= maxEntries) { Serial.print(F("    ... (truncated at ")); Serial.print(maxEntries); Serial.println(F(")")); }
+}
+
+static void diagProbe(const char* label, const char* path) {
+  bool found = (sdReady && SD.exists(path)) || LittleFS.exists(path);
+  Serial.print(F("  ")); Serial.print(label); Serial.print(F(" -> "));
+  Serial.print(path); Serial.print(F(" : "));
+  Serial.println(found ? F("FOUND") : F("MISSING"));
+}
+
+static void diagAudioAssets() {
+  Serial.println(F("\n── Audio Asset Diagnostics ───────────────"));
+  Serial.print(F("  lang=")); Serial.println(langEnglish ? "en" : "ch");
+  Serial.print(F("  sdReady=")); Serial.println(sdReady ? "YES" : "NO");
+  Serial.println(F("  -- asset directory listings --"));
+  diagListDir("SD",      SD,      "/words/en", 80);
+  diagListDir("SD",      SD,      "/voice/en", 80);
+  diagListDir("SD",      SD,      "/sfx/en", 80);
+  diagListDir("SD",      SD,      "/data/en", 80);
+  diagListDir("LittleFS", LittleFS, "/sfx/en", 80);
+  diagListDir("LittleFS", LittleFS, "/data/en", 80);
+  Serial.println(F("  -- probe specific words --"));
+  diagProbe("grace",   "/words/en/grace.mp3");
+  diagProbe("grace",   "/voice/en/grace.mp3");
+  diagProbe("grace",   "/sfx/en/grace.mp3");
+  diagProbe("grace",   "/data/en/grace.mp3");
+  diagProbe("poverty", "/words/en/poverty.mp3");
+  diagProbe("poverty", "/voice/en/poverty.mp3");
+  diagProbe("space",   "/sfx/en/space.mp3");
+  diagProbe("a",       "/sfx/en/a.mp3");
+  diagProbe("a",       "/words/en/a.mp3");
+  Serial.println(F("──────────────────────────────────────────\n"));
+}
+
 void setup() {
   Serial.begin(115200);
   vTaskDelay(pdMS_TO_TICKS(10));
@@ -158,9 +252,6 @@ void setup() {
   display.fillScreen(SH110X_BLACK); display.display();
   Serial.println(F("[OLED] OK"));
 
-  // ── SAM ──────────────────────────────────────────────────
-  samSetup();
-  Serial.println(F("[SAM] OK"));
   offlineGrammarSetup();
   Serial.println(F("[GRAMMAR] Offline engine ready"));
   mp3Setup();
@@ -181,32 +272,19 @@ void setup() {
     logTs("SD", "Card mounted");
   } else {
     logTs("SD", "Card not mounted; LittleFS/SAM fallback active");
+    sdWarningPending = true;
+  }
+  ensureFolders();
+
+  if (!sdReady) {
+    samSetup();
+    Serial.println(F("[SAM] OK - no SD fallback enabled"));
+  } else {
+    Serial.println(F("[SAM] skipped - SD audio mode"));
   }
 
   // ── Filesystem info ────────────────────────────────────────
-  Serial.println(F("\n── LittleFS Info ──────────────────"));
-  Serial.print(F("  Total : ")); Serial.print(LittleFS.totalBytes()); Serial.println(F(" bytes"));
-  Serial.print(F("  Used  : ")); Serial.print(LittleFS.usedBytes());  Serial.println(F(" bytes"));
-  Serial.print(F("  Free  : ")); Serial.print(LittleFS.totalBytes() - LittleFS.usedBytes()); Serial.println(F(" bytes"));
-  Serial.print(F("  Used% : ")); Serial.print((LittleFS.usedBytes() * 100) / LittleFS.totalBytes()); Serial.println(F("%"));
-  Serial.println(F("── Files ──────────────────────────"));
-  std::function<void(File, int)> listDir = [&](File dir, int depth) {
-    File f = dir.openNextFile();
-    while (f) {
-      for (int i = 0; i < depth; i++) Serial.print(F("  "));
-      if (f.isDirectory()) {
-        Serial.print(F("[")); Serial.print(f.name()); Serial.println(F("]"));
-        listDir(f, depth + 1);
-      } else {
-        Serial.print(f.name());
-        Serial.print(F("  ")); Serial.print(f.size()); Serial.println(F(" B"));
-      }
-      f = dir.openNextFile();
-    }
-  };
-  File fsRoot = LittleFS.open("/");
-  listDir(fsRoot, 0);
-  Serial.println(F("──────────────────────────────────\n"));
+  dumpFilesystemInfo("LittleFS Info");
 
   // ── Config ───────────────────────────────────────────────
   loadConfig();
@@ -227,22 +305,20 @@ void setup() {
     }
   } else { Serial.println(F("  (empty or missing)")); }
   Serial.print(F("[FS] Notes loaded: ")); Serial.println(noteCount);
-/*
-  // ── WiFi — start in background to reduce boot delay and current draw
-  showStatus("WiFi", "Starting in background", "");
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  WiFi.setSleep(true);
 
-  if (WiFi.status() == WL_CONNECTED) {
-    char ipBuf[32]; WiFi.localIP().toString().toCharArray(ipBuf, 32);
-    showStatus("WiFi Connected", ipBuf, "");
-    Serial.print(F("[WIFI] Connected — ")); Serial.println(WiFi.localIP());
-  } else {
-    showStatus("WiFi", "Connecting in background", "");
-    Serial.println(F("[WIFI] Starting in background"));
-  }
-*/
+  // NOTE: diagAudioAssets() used to run here unconditionally on every boot.
+  // It's a diagnostic-only scan (lists 6 folders + probes several words),
+  // and each probe is a real blocking filesystem call — dozens of them,
+  // each also spamming a Serial line. It added real boot time for zero
+  // runtime benefit. Still available on demand via the "assets" serial
+  // command below if you need to debug a missing/misplaced clip.
+
+  // WiFi bring-up intentionally removed — device now runs fully offline
+  // from SD/LittleFS audio assets (see mp3_player.cpp). Left out entirely
+  // rather than commented-out so this file doesn't carry rotting dead code;
+  // reintroducing online mode should restore this block from version
+  // control history rather than uncommenting a stale copy.
+
   if (sdReady) {
     showStatus("Audio ready", "SD voice enabled", "");
   } else {
@@ -268,29 +344,7 @@ void loop() {
     String cmd = Serial.readStringUntil('\n');
     cmd.trim(); cmd.toLowerCase();
     if (cmd == "fs") {
-      Serial.println(F("\n── LittleFS Storage ───────────────────"));
-      Serial.print(F("  Total : ")); Serial.print(LittleFS.totalBytes()); Serial.println(F(" bytes"));
-      Serial.print(F("  Used  : ")); Serial.print(LittleFS.usedBytes());  Serial.println(F(" bytes"));
-      Serial.print(F("  Free  : ")); Serial.print(LittleFS.totalBytes() - LittleFS.usedBytes()); Serial.println(F(" bytes"));
-      Serial.print(F("  Used% : ")); Serial.print((LittleFS.usedBytes() * 100) / LittleFS.totalBytes()); Serial.println(F("%"));
-      Serial.println(F("── Files ───────────────────────────────"));
-      std::function<void(File, int)> listDir = [&](File dir, int depth) {
-        File f = dir.openNextFile();
-        while (f) {
-          for (int i = 0; i < depth; i++) Serial.print(F("  "));
-          if (f.isDirectory()) {
-            Serial.print(F("[")); Serial.print(f.name()); Serial.println(F("]"));
-            listDir(f, depth + 1);
-          } else {
-            Serial.print(f.name());
-            Serial.print(F("  ")); Serial.print(f.size()); Serial.println(F(" B"));
-          }
-          f = dir.openNextFile();
-        }
-      };
-      File fsRoot = LittleFS.open("/");
-      listDir(fsRoot, 0);
-      Serial.println(F("────────────────────────────────────────\n"));
+      dumpFilesystemInfo("LittleFS Storage");
     }
     else if (cmd == "sd") {
       Serial.print(F("[SD] mounted=")); Serial.println(sdReady ? "YES" : "NO");
@@ -300,10 +354,23 @@ void loop() {
         Serial.print(F("[SD] used MB=")); Serial.println((uint32_t)(SD.usedBytes() / (1024 * 1024)));
       }
     }
+    else if (cmd == "assets") {
+      diagAudioAssets();
+    }
+    else if (cmd == "rechain") {
+      Serial.println(F("[CHAIN] Forcing full rebuild of all note chains..."));
+      unsigned long t0 = millis();
+      ensureNoteAudioChains(true);
+      Serial.print(F("[CHAIN] Rebuild complete in "));
+      Serial.print(millis() - t0); Serial.println(F(" ms"));
+    }
     else if (cmd == "help") {
       Serial.println(F("\n── Serial Commands ─────────────────────"));
       Serial.println(F("  fs          show filesystem storage and files"));
       Serial.println(F("  sd          show SD card status"));
+      Serial.println(F("  assets      list audio asset folders + probe words"));
+      Serial.println(F("  rechain     force-rebuild all note audio chains"));
+      Serial.println(F("                (run this after adding new SD word clips)"));
       Serial.println(F("  help        show this list"));
       Serial.println(F("────────────────────────────────────────\n"));
     }
@@ -314,10 +381,8 @@ void loop() {
       lastDebounce = millis();
       if (languageConfigured) {
         Serial.println(F("[LOOP] Startup timer done - entering main menu"));
-        currentState = STATE_MAIN_MENU;
         menuIndex = 0;
-        drawMainMenu();
-        speakPhrase("new_note");
+        enterMainMenu();
       } else {
         Serial.println(F("[LOOP] Startup timer done - first setup language select"));
         langChoiceIndex = langEnglish ? 0 : 1;
