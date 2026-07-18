@@ -1,0 +1,423 @@
+
+--- Terminal on COM5 | 115200 8-N-1
+--- Available filters and text transformations: debug, default, direct, esp32_exception_decoder, hexlify, log2file, nocontrol, printable,send_on_enter, time
+--- More details at https://bit.ly/pio-monitor-filters
+--- Quit: Ctrl+C | Menu: Ctrl+T | Help: Ctrl+T followed by Ctrl+H
+    ai_ready.mp3  7806 B
+    cancelled.mp3  5502 B
+    capital.mp3  5934 B
+    chichewa.mp3  5646 B
+    choose_language.mp3  7662 B
+    cleared.mp3  5502 B
+    deleted.mp3  6942 B
+    empty.mp3  5214 B
+    end_of_note.mp3  5646 B
+    english.mp3  6654 B
+    kept.mp3  11118 B
+    lang_instructions.mp3  16878 B
+    language.mp3  6942 B
+    loading.mp3  6798 B
+    new_note.mp3  8814 B
+    no_notes.mp3  7518 B
+    no_wifi.mp3  6222 B
+    no_wifi_ai.mp3  6222 B
+    note_saved.mp3  9390 B
+    nothing_typed.mp3  6222 B
+    number.mp3  6654 B
+    read_notes.mp3  8670 B
+    reading_note.mp3  7230 B
+    space.mp3  4782 B
+    storage_full.mp3  8382 B
+    title_saved.mp3  10830 B
+    undo.mp3  5214 B
+    undo_sentence.mp3  7662 B
+    write_title.mp3  5502 B
+  [en]
+    a.mp3  3671 B
+    ai.mp3  4211 B
+    ai_failed.mp3  7559 B
+    ai_ready.mp3  7127 B
+    b.mp3  3887 B
+    c.mp3  3887 B
+    cancelled.mp3  5075 B
+    capital.mp3  4859 B
+    chichewa.mp3  5075 B
+    choose_language.mp3  7667 B
+    cleared.mp3  4643 B
+    d.mp3  3887 B
+    deleted.mp3  4751 B
+    e.mp3  3671 B
+    empty.mp3  4427 B
+    end_of_note.mp3  8855 B
+    english.mp3  4643 B
+    f.mp3  3995 B
+    g.mp3  3887 B
+    h.mp3  4211 B
+    i.mp3  3671 B
+    j.mp3  3887 B
+    k.mp3  3995 B
+    kept.mp3  4535 B
+    l.mp3  4103 B
+    language.mp3  4859 B
+    loading.mp3  4643 B
+    m.mp3  3995 B
+    n.mp3  3995 B
+    new_note.mp3  6587 B
+    no_notes.mp3  6803 B
+    note_saved.mp3  7127 B
+    nothing_typed.mp3  7343 B
+    number.mp3  4427 B
+    o.mp3  3671 B
+    p.mp3  3779 B
+    q.mp3  4211 B
+    r.mp3  4103 B
+    read_notes.mp3  6695 B
+    reading_note.mp3  6911 B
+    s.mp3  3995 B
+    sd_missing.mp3  8747 B
+    space.mp3  4643 B
+    storage_full.mp3  7559 B
+    t.mp3  3779 B
+    title_saved.mp3  7343 B
+    u.mp3  3887 B
+    undo.mp3  4211 B
+    undo_word.mp3  6803 B
+    v.mp3  3779 B
+    w.mp3  4751 B
+    write_title.mp3  7019 B
+    y.mp3  3887 B
+    z.mp3  3887 B
+──────────────────────────────────
+
+[CFG] Language: en
+[BANK] Free heap before load: 245244 bytes
+[BANK] Index file contains 9629 line(s) - reserving space
+
+abort() was called at PC 0x4010dbe7 on core 1
+
+
+Backtrace: 0x40083c01:0x3ffb1fb0 0x4008af95:0x3ffb1fd0 0x40090459:0x3ffb1ff0 0x4010dbe7:0x3ffb2070 0x4010dc2e:0x3ffb2090 0x4010db8f:0x3ffb20b0 0x4010def2:0x3ffb20d0 0x400dd217:0x3ffb20f0 0x400df3b5:0x3ffb2110 0x400dc75f:0x3ffb2210 0x400f0c76:0x3ffb2290
+
+
+
+
+ELF file SHA256: 415091128163c0f2
+
+Rebooting...
+ets Jul 29 2019 12:21:46
+
+rst:0xc (SW_CPU_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:1184
+load:0x40078000,len:13192
+load:0x40080400,len:3028
+entry 0x400805e4
+
+
+══ DIGIBRAILLE v2 BOOT ══
+[55 ms] PINS OK
+[OLED] OK
+[GRAMMAR] Offline engine ready
+[240 ms] AUDIO MP3 I2S configured
+[MP3] I2S output ready
+[STATUS] DigiBraille v2 | Starting up...
+[414 ms] SD Card mounted
+[SD] Notes folder verified: /notes
+[SAM] skipped - SD audio mode
+
+── LittleFS Info ──────────────────
+  Total : 917504 bytes
+  Used  : 712704 bytes
+  Free  : 204800 bytes
+  Used% : 77%
+── Files ──────────────────────────
+config.txt  2 B
+draft.txt  4 B
+[notes]
+  note0.txt  194 B
+  note0_chain.txt  874 B
+  note0_title_chain.txt  25 B
+  note1.txt  31 B
+  note1_chain.txt  92 B
+  note1_title_chain.txt  54 B
+  note2.txt  30 B
+  note2_chain.txt  92 B
+  note2_title_chain.txt  49 B
+[sfx]
+  [ch]
+    ai.mp3  4638 B
+    ai_failed.mp3  6222 B
+    ai_ready.mp3  7806 B
+    cancelled.mp3  5502 B
+    capital.mp3  5934 B
+    chichewa.mp3  5646 B
+    choose_language.mp3  7662 B
+    cleared.mp3  5502 B
+    deleted.mp3  6942 B
+    empty.mp3  5214 B
+    end_of_note.mp3  5646 B
+    english.mp3  6654 B
+    kept.mp3  11118 B
+    lang_instructions.mp3  16878 B
+    language.mp3  6942 B
+    loading.mp3  6798 B
+    new_note.mp3  8814 B
+    no_notes.mp3  7518 B
+    no_wifi.mp3  6222 B
+    no_wifi_ai.mp3  6222 B
+    note_saved.mp3  9390 B
+    nothing_typed.mp3  6222 B
+    number.mp3  6654 B
+    read_notes.mp3  8670 B
+    reading_note.mp3  7230 B
+    space.mp3  4782 B
+    storage_full.mp3  8382 B
+    title_saved.mp3  10830 B
+    undo.mp3  5214 B
+    undo_sentence.mp3  7662 B
+    write_title.mp3  5502 B
+  [en]
+    a.mp3  3671 B
+    ai.mp3  4211 B
+    ai_failed.mp3  7559 B
+    ai_ready.mp3  7127 B
+    b.mp3  3887 B
+    c.mp3  3887 B
+    cancelled.mp3  5075 B
+    capital.mp3  4859 B
+    chichewa.mp3  5075 B
+    choose_language.mp3  7667 B
+    cleared.mp3  4643 B
+    d.mp3  3887 B
+    deleted.mp3  4751 B
+    e.mp3  3671 B
+    empty.mp3  4427 B
+    end_of_note.mp3  8855 B
+    english.mp3  4643 B
+    f.mp3  3995 B
+    g.mp3  3887 B
+    h.mp3  4211 B
+    i.mp3  3671 B
+    j.mp3  3887 B
+    k.mp3  3995 B
+    kept.mp3  4535 B
+    l.mp3  4103 B
+    language.mp3  4859 B
+    loading.mp3  4643 B
+    m.mp3  3995 B
+    n.mp3  3995 B
+    new_note.mp3  6587 B
+    no_notes.mp3  6803 B
+    note_saved.mp3  7127 B
+    nothing_typed.mp3  7343 B
+    number.mp3  4427 B
+    o.mp3  3671 B
+    p.mp3  3779 B
+    q.mp3  4211 B
+    r.mp3  4103 B
+    read_notes.mp3  6695 B
+    reading_note.mp3  6911 B
+    s.mp3  3995 B
+    sd_missing.mp3  8747 B
+    space.mp3  4643 B
+    storage_full.mp3  7559 B
+    t.mp3  3779 B
+    title_saved.mp3  7343 B
+    u.mp3  3887 B
+    undo.mp3  4211 B
+    undo_word.mp3  6803 B
+    v.mp3  3779 B
+    w.mp3  4751 B
+    write_title.mp3  7019 B
+    y.mp3  3887 B
+    z.mp3  3887 B
+──────────────────────────────────
+
+[CFG] Language: en
+[BANK] Free heap before load: 245244 bytes
+[BANK] Index file contains 9629 line(s) - reserving space
+
+abort() was called at PC 0x4010dbe7 on core 1
+
+
+Backtrace: 0x40083c01:0x3ffb1fb0 0x4008af95:0x3ffb1fd0 0x40090459:0x3ffb1ff0 0x4010dbe7:0x3ffb2070 0x4010dc2e:0x3ffb2090 0x4010db8f:0x3ffb20b0 0x4010def2:0x3ffb20d0 0x400dd217:0x3ffb20f0 0x400df3b5:0x3ffb2110 0x400dc75f:0x3ffb2210 0x400f0c76:0x3ffb2290
+
+
+
+
+ELF file SHA256: 415091128163c0f2
+
+Rebooting...
+ets Jul 29 2019 12:21:46
+
+rst:0xc (SW_CPU_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:1184
+load:0x40078000,len:13192
+load:0x40080400,len:3028
+entry 0x400805e4
+
+
+══ DIGIBRAILLE v2 BOOT ══
+[55 ms] PINS OK
+[OLED] OK
+[GRAMMAR] Offline engine ready
+[240 ms] AUDIO MP3 I2S configured
+[MP3] I2S output ready
+[STATUS] DigiBraille v2 | Starting up...
+[414 ms] SD Card mounted
+[SD] Notes folder verified: /notes
+[SAM] skipped - SD audio mode
+
+── LittleFS Info ──────────────────
+  Total : 917504 bytes
+  Used  : 712704 bytes
+  Free  : 204800 bytes
+  Used% : 77%
+── Files ──────────────────────────
+config.txt  2 B
+draft.txt  4 B
+[notes]
+  note0.txt  194 B
+  note0_chain.txt  874 B
+  note0_title_chain.txt  25 B
+  note1.txt  31 B
+  note1_chain.txt  92 B
+  note1_title_chain.txt  54 B
+  note2.txt  30 B
+  note2_chain.txt  92 B
+  note2_title_chain.txt  49 B
+[sfx]
+  [ch]
+    ai.mp3  4638 B
+    ai_failed.mp3  6222 B
+    ai_ready.mp3  7806 B
+    cancelled.mp3  5502 B
+    capital.mp3  5934 B
+    chichewa.mp3  5646 B
+    choose_language.mp3  7662 B
+    cleared.mp3  5502 B
+    deleted.mp3  6942 B
+    empty.mp3  5214 B
+    end_of_note.mp3  5646 B
+    english.mp3  6654 B
+    kept.mp3  11118 B
+    lang_instructions.mp3  16878 B
+    language.mp3  6942 B
+    loading.mp3  6798 B
+    new_note.mp3  8814 B
+    no_notes.mp3  7518 B
+    no_wifi.mp3  6222 B
+    no_wifi_ai.mp3  6222 B
+    note_saved.mp3  9390 B
+    nothing_typed.mp3  6222 B
+    number.mp3  6654 B
+    read_notes.mp3  8670 B
+    reading_note.mp3  7230 B
+    space.mp3  4782 B
+    storage_full.mp3  8382 B
+    title_saved.mp3  10830 B
+    undo.mp3  5214 B
+    undo_sentence.mp3  7662 B
+    write_title.mp3  5502 B
+  [en]
+    a.mp3  3671 B
+    ai.mp3  4211 B
+    ai_failed.mp3  7559 B
+    ai_ready.mp3  7127 B
+    b.mp3  3887 B
+    c.mp3  3887 B
+    cancelled.mp3  5075 B
+    capital.mp3  4859 B
+    chichewa.mp3  5075 B
+    choose_language.mp3  7667 B
+    cleared.mp3  4643 B
+    d.mp3  3887 B
+    deleted.mp3  4751 B
+    e.mp3  3671 B
+    empty.mp3  4427 B
+    end_of_note.mp3  8855 B
+    english.mp3  4643 B
+    f.mp3  3995 B
+    g.mp3  3887 B
+    h.mp3  4211 B
+    i.mp3  3671 B
+    j.mp3  3887 B
+    k.mp3  3995 B
+    kept.mp3  4535 B
+    l.mp3  4103 B
+    language.mp3  4859 B
+    loading.mp3  4643 B
+    m.mp3  3995 B
+    n.mp3  3995 B
+    new_note.mp3  6587 B
+    no_notes.mp3  6803 B
+    note_saved.mp3  7127 B
+    nothing_typed.mp3  7343 B
+    number.mp3  4427 B
+    o.mp3  3671 B
+    p.mp3  3779 B
+    q.mp3  4211 B
+    r.mp3  4103 B
+    read_notes.mp3  6695 B
+    reading_note.mp3  6911 B
+    s.mp3  3995 B
+    sd_missing.mp3  8747 B
+    space.mp3  4643 B
+    storage_full.mp3  7559 B
+    t.mp3  3779 B
+    title_saved.mp3  7343 B
+    u.mp3  3887 B
+    undo.mp3  4211 B
+    undo_word.mp3  6803 B
+    v.mp3  3779 B
+    w.mp3  4751 B
+    write_title.mp3  7019 B
+    y.mp3  3887 B
+    z.mp3  3887 B
+──────────────────────────────────
+
+[CFG] Language: en
+[BANK] Free heap before load: 245244 bytes
+[BANK] Index file contains 9629 line(s) - reserving space
+
+abort() was called at PC 0x4010dbe7 on core 1
+
+
+Backtrace: 0x40083c01:0x3ffb1fb0 0x4008af95:0x3ffb1fd0 0x40090459:0x3ffb1ff0 0x4010dbe7:0x3ffb2070 0x4010dc2e:0x3ffb2090 0x4010db8f:0x3ffb20b0 0x4010def2:0x3ffb20d0 0x400dd217:0x3ffb20f0 0x400df3b5:0x3ffb2110 0x400dc75f:0x3ffb2210 0x400f0c76:0x3ffb2290
+
+
+
+
+ELF file SHA256: 415091128163c0f2
+
+Rebooting...
+ets Jul 29 2019 12:21:46
+
+rst:0xc (SW_CPU_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:1184
+load:0x40078000,len:13192
+load:0x40080400,len:3028
+entry 0x400805e4
+
+
+══ DIGIBRAILLE v2 BOOT ══
+[55 ms] PINS OK
+[OLED] OK
+[GRAMMAR] Offline engine ready
+[240 ms] AUDIO MP3 I2S configured
+[MP3] I2S output ready
+[STATUS] DigiBraille v2 | Starting up...
+[414 ms] SD Card mounted
+[SD] Notes folder verified: /notes
+[SAM] skipped - SD audio mode
+
+── LittleFS Info ──────────────────
+  Total : Disconnected (GetOverlappedResult failed (PermissionError(13, 'Access is denied.', None, 5)))

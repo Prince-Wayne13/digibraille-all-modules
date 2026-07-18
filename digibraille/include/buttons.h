@@ -40,10 +40,22 @@ static void speakNoteTitle(int index) {
     // (whole-word "grace.mp3" if present, else letter-by-letter) — no
     // reliance on a never-generated note{N}_title.mp3. Build it on the fly
     // if a boot migration somehow hasn't produced one yet, then play it.
+    bool played = false;
     if (noteTitleChainExists(index) || buildNoteTitleChain(index, title)) {
-      playNoteTitleChain(index);
-    } else {
-      // Last-resort fallback if storage is unwritable: live asset/SAM spell.
+      played = playNoteTitleChain(index);
+      if (!played) {
+        // Chain existed but produced no audio at all — most likely a
+        // stale/empty/corrupt chain left over from before the asset
+        // library or chain format changed. Force one rebuild and retry
+        // instead of silently doing nothing forever.
+        Serial.println(F("[TITLE] Chain produced no audio - rebuilding once"));
+        buildNoteTitleChain(index, title);
+        played = playNoteTitleChain(index);
+      }
+    }
+    if (!played) {
+      // Last-resort fallback if storage is unwritable or rebuild still
+      // fails: live asset/SAM spell.
       speakText(title, "");
       lastInterruptPin = -1; // speakText's SAM/asset path isn't interrupt-tracked like playMP3
     }
@@ -92,6 +104,23 @@ void handleLangSelect() {
     lastDebounce = now;
     langEnglish = (langChoiceIndex == 0);
     saveConfig();
+    // Index and bank are both built per-language (/words/en vs /words/ch).
+    // Bank is tried FIRST and, if it loads, the slow full-folder index scan
+    // is skipped entirely — see log session 14: with a large word library
+    // (thousands of clips), that scan measured a clearly quadratic growth
+    // in cost (each successive 1000 files took 3x+ longer than the last),
+    // projecting to roughly four hours for ~9,629 files. Since
+    // resolveAudioAsset() checks the bank before ever touching the index,
+    // running the slow scan when the bank already covers this language was
+    // pure wasted time — and doing it HERE, mid-use while the UI is
+    // blocked waiting on this call, would be far worse than at boot.
+    bool bankLoaded = loadWordBank();
+    if (!bankLoaded) {
+      Serial.println(F("[INDEX] No word bank for this language - rebuilding per-file index"));
+      buildWordAssetIndex();
+    } else {
+      Serial.println(F("[INDEX] Word bank loaded - skipping slow per-file directory scan"));
+    }
     Serial.print(F("[LANG] Saved "));
     Serial.println(langEnglish ? "English" : "Chichewa");
     speakPhrase(langEnglish ? "english" : "chichewa");
@@ -148,43 +177,17 @@ void handleMainMenu() {
 // exists yet (an older note saved before this feature existed), falls
 // back to speaking just the title so the user isn't met with silence.
 //
-// Interrupt-aware for BOTH BACK and DOWN now:
-//  - BACK cuts the chain short and this returns immediately WITHOUT
-//    speaking "end_of_note" — caller checks lastInterruptPin to navigate
-//    back a screen right away.
-//  - DOWN cuts the chain short, scrolls the on-screen text one page, and
-//    resumes reading, rather than the chain playing to completion no
-//    matter what the user presses.
-//
-// BUG FIX: previously mp3_player.cpp's chain player only stopped for
-// BACK, so a DOWN press mid-note silenced one word's clip but the chain
-// kept right on playing every remaining word — DOWN appeared to do
-// nothing because handleViewNote() (which scrolls the screen) never got
-// a turn until the whole note finished, often a minute or more later, by
-// which point the button press was long over. Now that the chain player
-// stops for any control button (see playChainAtPath in mp3_player.cpp),
-// DOWN here actually scrolls the screen and keeps reading, instead of
-// being silently swallowed.
+// BACK-aware: if BACK cuts the chain short, this returns immediately
+// afterward WITHOUT speaking "end_of_note" — the caller checks
+// lastInterruptPin itself to decide whether to also navigate back a
+// screen right away, same as any other BACK-interrupted action.
 static void speakNoteBody(int index) {
   speakPhrase("reading_note");
-  while (true) {
-    if (noteAudioChainExists(index)) {
-      playNoteAudioChain(index);
-    } else {
-      Serial.println(F("[NOTE] No chain built yet — reading title only"));
-      speakText(getNoteTitle(index), "");
-      lastInterruptPin = -1; // speakText's SAM/asset path isn't interrupt-tracked like playMP3
-      break;
-    }
-    if (lastInterruptPin == BTN_DOWN) {
-      noteScrollOffset++;
-      drawViewNote(index);
-      logTestEvent(4, "view-scroll-down", String("offset=") + String(noteScrollOffset));
-      continue; // keep reading — chain playback doesn't track position, so
-                // this re-reads from the start; acceptable tradeoff vs. the
-                // prior behavior of DOWN doing nothing at all
-    }
-    break;
+  if (noteAudioChainExists(index)) {
+    playNoteAudioChain(index);
+  } else {
+    Serial.println(F("[NOTE] No chain built yet — reading title only"));
+    speakText(getNoteTitle(index), "");
   }
   if (lastInterruptPin != BTN_BACK) speakPhrase("end_of_note");
 }
@@ -223,12 +226,9 @@ void handleViewNote() {
     unsigned long actionStart = millis();
     lastDebounce=millis(); noteScrollOffset++; drawViewNote(selectedNote);
     logTestEvent(4, "view-scroll-down", String("offset=") + String(noteScrollOffset));
-    // This branch only fires once speakNoteBody() has returned (finished,
-    // or was cut by something other than DOWN) — while a chain is
-    // actively playing, DOWN is now handled inline inside speakNoteBody()
-    // itself (see buttons.h), which scrolls AND resumes reading. This is
-    // the "note already finished, DOWN just pages the visible text"
-    // silent-scroll case.
+    // The chain already reads the whole note aloud once on entry, so DOWN
+    // here only scrolls the on-screen text — no per-line audio needed or
+    // spoken twice.
     logTestEvent(4, "view-scroll-feedback-complete", String("duration_ms=") + String(millis() - actionStart));
   } else if (buttonPressed(BTN_REREAD)) {
     lastDebounce=millis();

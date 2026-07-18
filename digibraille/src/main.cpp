@@ -196,23 +196,23 @@ static void diagAudioAssets() {
   Serial.println(F("\n── Audio Asset Diagnostics ───────────────"));
   Serial.print(F("  lang=")); Serial.println(langEnglish ? "en" : "ch");
   Serial.print(F("  sdReady=")); Serial.println(sdReady ? "YES" : "NO");
-  Serial.println(F("  -- asset directory listings --"));
-  diagListDir("SD",      SD,      "/words/en", 80);
-  diagListDir("SD",      SD,      "/voice/en", 80);
-  diagListDir("SD",      SD,      "/sfx/en", 80);
-  diagListDir("SD",      SD,      "/data/en", 80);
-  diagListDir("LittleFS", LittleFS, "/sfx/en", 80);
-  diagListDir("LittleFS", LittleFS, "/data/en", 80);
+  // NOTE: word resolution is single-directory only as of session 8
+  // (/words/<lang> — the /voice, /sfx, /data fallback search was removed
+  // as dead overhead). This diagnostic previously still listed all four,
+  // which no longer matches how resolveAudioAsset() actually looks things
+  // up — updated here to reflect the real current path: the word
+  // directory itself, plus bank status (session 10) and index status
+  // (session 9), since those are now the two layers actually in front of
+  // real SD access.
+  Serial.println(F("  -- word directory listing --"));
+  diagListDir("SD", SD, langEnglish ? "/words/en" : "/words/ch", 80);
+  Serial.println(F("  -- word bank status --"));
+  Serial.print(F("  bank loaded: ")); Serial.println(wordBankIsLoaded() ? "YES" : "NO");
+  if (wordBankIsLoaded()) Serial.print(F("  bank entries: ")), Serial.println(wordBankEntryCount());
   Serial.println(F("  -- probe specific words --"));
-  diagProbe("grace",   "/words/en/grace.mp3");
-  diagProbe("grace",   "/voice/en/grace.mp3");
-  diagProbe("grace",   "/sfx/en/grace.mp3");
-  diagProbe("grace",   "/data/en/grace.mp3");
-  diagProbe("poverty", "/words/en/poverty.mp3");
-  diagProbe("poverty", "/voice/en/poverty.mp3");
-  diagProbe("space",   "/sfx/en/space.mp3");
-  diagProbe("a",       "/sfx/en/a.mp3");
-  diagProbe("a",       "/words/en/a.mp3");
+  diagProbe("grace",   langEnglish ? "/words/en/grace.mp3" : "/words/ch/grace.mp3");
+  diagProbe("poverty", langEnglish ? "/words/en/poverty.mp3" : "/words/ch/poverty.mp3");
+  diagProbe("a",       langEnglish ? "/words/en/a.mp3" : "/words/ch/a.mp3");
   Serial.println(F("──────────────────────────────────────────\n"));
 }
 
@@ -290,6 +290,36 @@ void setup() {
   loadConfig();
   Serial.print(F("[CFG] Language: ")); Serial.println(langEnglish ? "en" : "ch");
 
+  // ── Word bank (optional, opt-in accelerator) — now tried FIRST ──────
+  // Session 14 finding: with a large word library (thousands of clips),
+  // buildWordAssetIndex()'s directory scan (openNextFile(), one entry at a
+  // time) showed clearly quadratic growth in practice — each successive
+  // 1000 files took over 3x longer than the previous 1000 on real hardware
+  // (measured: 155s for files 1-1000, then 504s for files 1000-2000),
+  // projecting to roughly FOUR HOURS to finish scanning ~9,629 files. The
+  // bank index (bank.idx), by contrast, is one plain-text file read top to
+  // bottom — ordinary sequential I/O with none of that per-position cost —
+  // and it already contains the complete word list. So: try the bank
+  // first; only pay for the slow full-folder scan if no usable bank exists
+  // (e.g. this language hasn't been packed yet). If the bank loads, the
+  // per-file index below is skipped entirely — resolveAudioAsset() checks
+  // the bank first anyway, so the index would have been redundant work.
+  bool bankLoaded = loadWordBank();
+
+  // ── Word asset index — SKIPPED if the bank already covers this
+  // language; otherwise the same fallback scan as before. ─────────────
+  // Must come after loadConfig() (needs the real language) and before
+  // loadNotes()/writeSeedNotes() (chain building/migration below uses the
+  // index too). See mp3_player.cpp for the full rationale — this is what
+  // eliminates the redundant existence-probe SD call per word, and lets
+  // the numeral fix skip lookups for characters known not to exist.
+  if (!bankLoaded) {
+    Serial.println(F("[INDEX] No word bank loaded - falling back to per-file index scan"));
+    buildWordAssetIndex();
+  } else {
+    Serial.println(F("[INDEX] Word bank loaded - skipping slow per-file directory scan"));
+  }
+
   // ── Notes ────────────────────────────────────────────────
   writeSeedNotes();
   loadNotes();
@@ -364,13 +394,26 @@ void loop() {
       Serial.print(F("[CHAIN] Rebuild complete in "));
       Serial.print(millis() - t0); Serial.println(F(" ms"));
     }
+    else if (cmd == "reindex") {
+      Serial.println(F("[BANK] Reloading word bank (if present)..."));
+      bool bankLoaded = loadWordBank();
+      if (!bankLoaded) {
+        Serial.println(F("[INDEX] No word bank loaded - rebuilding per-file index (this can take a long time with a large word library — see log session 14)..."));
+        buildWordAssetIndex();
+      } else {
+        Serial.println(F("[INDEX] Word bank loaded - skipping slow per-file directory scan"));
+        Serial.println(F("[INDEX] (if you added NEW word clips not yet in the bank, repack bank_en.idx/.bin on your PC first, then run reindex again)"));
+      }
+    }
     else if (cmd == "help") {
       Serial.println(F("\n── Serial Commands ─────────────────────"));
       Serial.println(F("  fs          show filesystem storage and files"));
       Serial.println(F("  sd          show SD card status"));
       Serial.println(F("  assets      list audio asset folders + probe words"));
       Serial.println(F("  rechain     force-rebuild all note audio chains"));
-      Serial.println(F("                (run this after adding new SD word clips)"));
+      Serial.println(F("  reindex     rebuild the word asset index + reload the word bank"));
+      Serial.println(F("                (run this + rechain after adding new SD word"));
+      Serial.println(F("                 clips OR copying a freshly-packed bank.bin/bank.idx)"));
       Serial.println(F("  help        show this list"));
       Serial.println(F("────────────────────────────────────────\n"));
     }

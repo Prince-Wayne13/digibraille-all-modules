@@ -1,0 +1,5 @@
+E:\words\en 
+Packing 9629 clip(s) from 'E:\words\en' (lang='en')...
+
+Wrote E:\words\bank_en.bin  (48284947 bytes total)
+Wrote E:\words\bank_en.idx  (9629 entries)
