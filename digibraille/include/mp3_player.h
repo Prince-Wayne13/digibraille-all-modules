@@ -77,7 +77,16 @@ bool buildNoteTitleChain(int index, const String& title);
 // Returns false if no chain file exists yet for this note (e.g. an older
 // note saved before this feature existed) — caller should fall back to
 // something else (currently: speak the title only) in that case.
-bool playNoteAudioChain(int index);
+//
+// onDownPressed (session 18, optional, default nullptr): if provided,
+// DOWN presses during playback do NOT interrupt the chain — every other
+// control button (BACK/SELECT/AI-SAVE/DELETE) still does. Instead, this
+// callback fires once per physical DOWN press while audio keeps playing
+// uninterrupted, letting the caller scroll on-screen text in sync with
+// note body playback (see handleViewNote() in buttons.h). Omit this
+// argument (or pass nullptr explicitly) for the original behavior where
+// DOWN is an ordinary interrupt, same as before this session.
+bool playNoteAudioChain(int index, void (*onDownPressed)() = nullptr);
 
 // Plays note `index`'s previously-built TITLE chain (see
 // buildNoteTitleChain). Same interrupt-aware, unit-by-unit behavior as

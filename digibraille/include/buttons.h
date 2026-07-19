@@ -172,6 +172,24 @@ void handleMainMenu() {
   }
 }
 
+// Callback passed to playNoteAudioChain() (see mp3_player.h/.cpp session
+// 18 change) — fires once per physical DOWN press WHILE the note body is
+// being read aloud, WITHOUT stopping playback. Reuses the exact same
+// scroll logic handleViewNote()'s own DOWN handler already had (advance
+// noteScrollOffset, redraw) — this just makes it reachable during
+// playback too, which it never was before (loop() was blocked inside the
+// audio call the whole time DOWN normally would have been handled).
+// Must be a plain function (not a lambda with captures) since it's
+// invoked through a C-style function pointer, matching how the rest of
+// this codebase already passes callbacks across the mp3_player.cpp
+// boundary — relies on selectedNote/noteScrollOffset being globals
+// (globals.h), same as handleViewNote() itself does.
+static void onDownDuringNoteBody() {
+  noteScrollOffset++;
+  drawViewNote(selectedNote);
+  logTestEvent(4, "view-scroll-down-during-playback", String("offset=") + String(noteScrollOffset));
+}
+
 // Plays note `index`'s body via its pre-built audio chain (see
 // buildNoteAudioChain/playNoteAudioChain in mp3_player.cpp). If no chain
 // exists yet (an older note saved before this feature existed), falls
@@ -181,10 +199,20 @@ void handleMainMenu() {
 // afterward WITHOUT speaking "end_of_note" — the caller checks
 // lastInterruptPin itself to decide whether to also navigate back a
 // screen right away, same as any other BACK-interrupted action.
+//
+// DOWN-aware (session 18): passes onDownDuringNoteBody() to
+// playNoteAudioChain() so DOWN scrolls the screen in sync while the body
+// keeps playing, instead of doing nothing (previously DOWN was one of the
+// buttons that could interrupt a clip, but interrupting mid-word and then
+// letting the chain continue anyway meant DOWN visibly did nothing useful
+// during body playback — this replaces that dead behavior with real
+// scrolling). Only body playback gets this — title playback (via
+// speakNoteTitle() above) is unchanged and still uses DOWN to skip to the
+// next note's title, since that's a different, already-useful behavior.
 static void speakNoteBody(int index) {
   speakPhrase("reading_note");
   if (noteAudioChainExists(index)) {
-    playNoteAudioChain(index);
+    playNoteAudioChain(index, onDownDuringNoteBody);
   } else {
     Serial.println(F("[NOTE] No chain built yet — reading title only"));
     speakText(getNoteTitle(index), "");

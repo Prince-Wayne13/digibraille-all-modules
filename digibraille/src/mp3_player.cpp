@@ -313,6 +313,18 @@ static bool                _i2sConfigured = false;
 static const int kInterruptPins[5] = {BTN_BACK, BTN_SELECT, BTN_DOWN, BTN_AISAVE, BTN_DELETE};
 static const int kInterruptPinCount = 5;
 
+// Same as kInterruptPins but WITHOUT BTN_DOWN — used only during chain
+// (note body/title) playback. DOWN's job while a chain is reading aloud
+// is "scroll the on-screen text without stopping the audio" (see
+// playChainWordFromRam's downPollCallback below), not "interrupt this
+// clip like every other control button." Every other button still stops
+// playback exactly as before; only DOWN's meaning changes, and only in
+// this one context. Kept as a genuinely separate list (not a runtime
+// filter on kInterruptPins) so the debounce array indexing in
+// debouncedInterruptPin() stays simple and correct for both cases.
+static const int kChainInterruptPins[4] = {BTN_BACK, BTN_SELECT, BTN_AISAVE, BTN_DELETE};
+static const int kChainInterruptPinCount = 4;
+
 static String audioLangFolder() {
   // The ONLY word-audio location. All note/title/letter/space clips live
   // here, one flat file per word: /words/<lang>/<word>.mp3. Previously the
@@ -490,21 +502,25 @@ static const unsigned long kInterruptDebounceMs = 20;
 // Per-pin "when did this pin first start reading pressed" timestamps, used
 // only during the debounce window of a single playMP3() call. 0 means "not
 // currently being timed" (either not pressed, or already confirmed/reset).
+// Sized to the larger of the two interrupt pin lists (kInterruptPinCount=5)
+// — kChainInterruptPins (4 entries) simply uses the first 4 slots. Shared
+// across both lists since only one interrupt-scan is ever "live" at a time
+// (a single-threaded blocking playback call), same as before this change.
 static unsigned long _interruptPressStart[kInterruptPinCount] = {0};
 
-static void resetInterruptDebounce() {
-  for (int i = 0; i < kInterruptPinCount; i++) _interruptPressStart[i] = 0;
+static void resetInterruptDebounce(int pinCount = kInterruptPinCount) {
+  for (int i = 0; i < pinCount; i++) _interruptPressStart[i] = 0;
 }
 
-// Returns the pin index that just crossed the debounce threshold, or -1.
-// A pin that was already held when playback started (initial[i] == true)
-// never counts, so resuming playback right after a long-press doesn't
-// immediately re-trigger on the same still-held button.
-static int debouncedInterruptPin(const bool initial[kInterruptPinCount]) {
+// Returns the pin index (into `pins`) that just crossed the debounce
+// threshold, or -1. A pin that was already held when playback started
+// (initial[i] == true) never counts, so resuming playback right after a
+// long-press doesn't immediately re-trigger on the same still-held button.
+static int debouncedInterruptPin(const bool* initial, const int* pins, int pinCount) {
   unsigned long now = millis();
-  for (int i = 0; i < kInterruptPinCount; i++) {
+  for (int i = 0; i < pinCount; i++) {
     if (initial[i]) continue; // was already held before this clip started — ignore
-    bool pressedNow = buttonPressed(kInterruptPins[i]);
+    bool pressedNow = buttonPressed(pins[i]);
     if (!pressedNow) {
       _interruptPressStart[i] = 0; // released (or bounced low) — reset the timer
       continue;
@@ -521,10 +537,57 @@ static int debouncedInterruptPin(const bool initial[kInterruptPinCount]) {
 }
 
 static bool controlButtonPressedAfterStart(const bool initial[kInterruptPinCount]) {
-  int idx = debouncedInterruptPin(initial);
+  int idx = debouncedInterruptPin(initial, kInterruptPins, kInterruptPinCount);
   if (idx < 0) return false;
   lastInterruptPin = kInterruptPins[idx];
   return true;
+}
+
+// Same idea as controlButtonPressedAfterStart(), but scanning the
+// DOWN-excluded chain interrupt list instead — used only inside chain
+// playback (see kChainInterruptPins above).
+static bool chainInterruptPressedAfterStart(const bool initial[kChainInterruptPinCount]) {
+  int idx = debouncedInterruptPin(initial, kChainInterruptPins, kChainInterruptPinCount);
+  if (idx < 0) return false;
+  lastInterruptPin = kChainInterruptPins[idx];
+  return true;
+}
+
+// Independent, separately-debounced DOWN poll for use during chain
+// playback, alongside (not instead of) chainInterruptPressedAfterStart()
+// above. DOWN is deliberately NOT part of kChainInterruptPins — pressing
+// it should scroll the screen without stopping the current word clip.
+// Uses its own single-pin debounce state so it doesn't share (and
+// therefore can't corrupt) the interrupt-list debounce timers above.
+static unsigned long _downPressStart = 0;
+static bool _downWasInitiallyHeld = false;
+
+static void resetDownPoll() {
+  _downPressStart = 0;
+  _downWasInitiallyHeld = buttonPressed(BTN_DOWN);
+}
+
+// Returns true at most once per physical press (fires when the press
+// crosses the debounce threshold, not on every loop iteration while held),
+// so a callback wired to this fires once per press, not repeatedly for as
+// long as the button stays down.
+static bool downPressedThisPoll() {
+  if (_downWasInitiallyHeld) {
+    // Still down from before this playback call started — wait for a
+    // release before arming, same "ignore already-held" rule the other
+    // interrupt pins use, so a long-held DOWN from an earlier action
+    // doesn't immediately fire here too.
+    if (!buttonPressed(BTN_DOWN)) _downWasInitiallyHeld = false;
+    return false;
+  }
+  bool pressedNow = buttonPressed(BTN_DOWN);
+  if (!pressedNow) { _downPressStart = 0; return false; }
+  if (_downPressStart == 0) { _downPressStart = millis(); return false; }
+  if (millis() - _downPressStart >= kInterruptDebounceMs) {
+    _downPressStart = 0; // consumed — next physical press starts its own fresh timer
+    return true;
+  }
+  return false;
 }
 
 static void configureI2SOnce() {
@@ -1154,7 +1217,33 @@ static void requestPrefetch(const String& path) {
 // this file), otherwise blocking on a direct load — same cost as before,
 // but now only for words that had no chance to be prefetched (typically
 // just the first word of a chain).
-static bool playChainWordFromRam(const String& path) {
+//
+// keepI2SRunning: when true (the normal case — this word is followed by
+// another word in the same chain), the I2S output is left running after
+// this clip finishes instead of being stopped and reconfigured for the
+// next call. Session 18 boot-log analysis found a consistent ~148ms of
+// unaccounted gap on TOP of the intended 120ms inter-word pause at every
+// ordinary word boundary (measured: blind→girl 268ms, girl→from 270ms,
+// from→z 265ms — remarkably consistent, which points at fixed per-call
+// setup/teardown cost rather than variable SD/lookup jitter). The
+// dominant suspect is _i2sOut.stop() + the implicit re-init inside the
+// next _mp3.begin() — stopping/restarting an I2S DMA output typically has
+// real hardware settling time, and this was previously happening on
+// EVERY word, not just at sentence/chain boundaries. Only the shared
+// AudioGeneratorMP3 decoder instance (_mp3) needs to reset between
+// clips — the underlying I2S peripheral (_i2sOut) does not need to be
+// torn down for consecutive words feeding the same output.
+//
+// onDownPressed: optional callback invoked (once per physical press, not
+// repeatedly while held) if DOWN is pressed WHILE this clip is playing.
+// Unlike every other control button, DOWN does NOT stop the clip here —
+// see kChainInterruptPins above. The callback fires and playback simply
+// continues, letting the caller (buttons.h's handleViewNote) scroll the
+// on-screen text without interrupting the read-aloud. Pass nullptr (the
+// default) to disable this — every other caller of this function (e.g.
+// title-chain playback, which still wants DOWN-to-skip-to-next-title
+// behavior — see speakNoteTitle() in buttons.h) is unaffected.
+static bool playChainWordFromRam(const String& path, bool keepI2SRunning, void (*onDownPressed)() = nullptr) {
   ensurePrefetchMutex();
   WordClipBuffer* useBuf = nullptr;
 
@@ -1194,6 +1283,11 @@ static bool playChainWordFromRam(const String& path) {
   logTsValue("AUDIO", "MP3 START (RAM) ", useBuf->path);
   unsigned long t0 = millis();
   lastInterruptPin = -1;
+  // The MP3 DECODER instance still needs a clean stop between clips
+  // (it's a stateful generator being handed a brand new source each
+  // time) — this part is unchanged and still required. What changed is
+  // that _i2sOut itself is no longer stopped/restarted here; see
+  // keepI2SRunning below.
   if (_mp3.isRunning()) { _mp3.stop(); delay(15); }
   if (_audioSrc) { delete _audioSrc; _audioSrc = nullptr; }
 
@@ -1201,20 +1295,44 @@ static bool playChainWordFromRam(const String& path) {
   configureI2SOnce();
   _mp3.begin(_audioSrc, &_i2sOut);
 
-  bool initialButtons[kInterruptPinCount];
-  for (int i = 0; i < kInterruptPinCount; i++) initialButtons[i] = buttonPressed(kInterruptPins[i]);
-  resetInterruptDebounce();
+  bool usingChainList = (onDownPressed != nullptr);
+  bool initialButtons[kInterruptPinCount]; // sized to the larger list; only the first N are used below
+  int activePinCount = usingChainList ? kChainInterruptPinCount : kInterruptPinCount;
+  const int* activePins = usingChainList ? kChainInterruptPins : kInterruptPins;
+  for (int i = 0; i < activePinCount; i++) initialButtons[i] = buttonPressed(activePins[i]);
+  resetInterruptDebounce(activePinCount);
+  if (usingChainList) resetDownPoll();
 
   while (_mp3.isRunning()) {
     debugLogButtonTransitions("mp3");
-    if (controlButtonPressedAfterStart(initialButtons)) {
-      logTs("BUTTON", "MP3 interrupted by button");
-      _mp3.stop();
-      break;
+    if (usingChainList) {
+      if (downPressedThisPoll()) onDownPressed(); // fires, playback continues — DOWN never stops chain audio
+      if (chainInterruptPressedAfterStart(initialButtons)) {
+        logTs("BUTTON", "MP3 interrupted by button");
+        _mp3.stop();
+        break;
+      }
+    } else {
+      if (controlButtonPressedAfterStart(initialButtons)) {
+        logTs("BUTTON", "MP3 interrupted by button");
+        _mp3.stop();
+        break;
+      }
     }
     if (!_mp3.loop()) { _mp3.stop(); break; }
   }
-  _i2sOut.stop();
+  // Only stop the I2S output itself if this is the LAST word of a chain
+  // (or playback was interrupted) — see keepI2SRunning doc above. Leaving
+  // it running between consecutive chain words removes a real, measured
+  // per-word DMA stop/restart cost. NEEDS A REAL LISTEN-TEST: this is the
+  // one part of this fix that could trade "slightly slow" for "audible
+  // click/pop" if AudioGeneratorMP3::begin() against a still-running
+  // output doesn't fully reset decoder state the way it does against a
+  // freshly-started one — flagging honestly rather than assuming it's
+  // silent, since the ESP8266Audio library's exact internals here aren't
+  // available to verify against in this environment (same caveat already
+  // on record for this library from earlier sessions).
+  if (!keepI2SRunning) _i2sOut.stop();
   if (_audioSrc) { delete _audioSrc; _audioSrc = nullptr; }
 
   Serial.print('['); Serial.print(millis()); Serial.print(F(" ms] AUDIO MP3 DONE(RAM) duration="));
@@ -1223,23 +1341,38 @@ static bool playChainWordFromRam(const String& path) {
 }
 #endif // ENABLE_WORD_CLIP_PREFETCH
 
-// Plays one resolved chain line. Returns true if this unit produced AUDIBLE
-// output (a word/letter clip actually played) — NOT true merely for a
-// pause. This distinction matters: playChainAtPath uses the count of
-// audio-producing units to decide whether the chain "worked" at all. A
-// chain whose every W:/L: word lookup fails must report failure even
-// though it still contains valid SP/SPS silence markers.
-static bool playChainUnit(const String& line, bool& producedAudio) {
+// Plays one resolved chain line. `resolvedPath` is the already-resolved
+// asset path for W:/L: lines (computed once by the caller's lookahead
+// scan — see playChainAtPath's resolveCached()) — this function does NOT
+// re-resolve it, to avoid a second on-SD bank binary search for the same
+// word (see session 17: resolveAudioAsset()'s bank lookup is no longer a
+// free in-RAM operation). For SP/SPS lines, resolvedPath is unused.
+// `keepI2SRunning` is forwarded to playChainWordFromRam() (see session 18
+// pacing fix) — true for every word except the chain's last, so the I2S
+// output isn't torn down and rebuilt between consecutive words.
+// Returns true if this unit produced AUDIBLE output (a word/letter clip
+// actually played) — NOT true merely for a pause. This distinction
+// matters: playChainAtPath uses the count of audio-producing units to
+// decide whether the chain "worked" at all. A chain whose every W:/L:
+// word lookup fails must report failure even though it still contains
+// valid SP/SPS silence markers.
+// `onDownPressed` is forwarded to playChainWordFromRam() — see its doc
+// comment (session 18 DOWN-scroll fix). nullptr (the default via
+// playChainAtPath) means DOWN behaves as an ordinary interrupt, same as
+// before this session — only note-BODY playback (see playNoteAudioChain
+// below) passes a real callback; title-chain playback is unaffected.
+static bool playChainUnit(const String& line, const String& resolvedPath, bool keepI2SRunning, void (*onDownPressed)(), bool& producedAudio) {
   producedAudio = false;
   if (line == "SP")  { delay(kSpacePauseMs);    return true; }
   if (line == "SPS") { delay(kSentencePauseMs); return true; }
   if (line.startsWith("W:") || line.startsWith("L:")) {
-    String path = resolveAudioAsset(line.substring(2));
-    if (path.length() == 0) return false;
+    if (resolvedPath.length() == 0) return false;
 #if ENABLE_WORD_CLIP_PREFETCH
-    bool ok = playChainWordFromRam(path);
+    bool ok = playChainWordFromRam(resolvedPath, keepI2SRunning, onDownPressed);
 #else
-    bool ok = playResolvedAsset(line.substring(2));
+    (void)keepI2SRunning; (void)onDownPressed; // only meaningful for the RAM/prefetch path above; playMP3() manages its own I2S lifecycle and has no DOWN-scroll support
+    playMP3(resolvedPath);
+    bool ok = true; // matches prior playResolvedAsset() semantics: playMP3 is void, so "path existed and was played" is the success signal here
 #endif
     producedAudio = ok;
     return ok;
@@ -1295,22 +1428,74 @@ static std::vector<String> readChainLines(const String& path) {
 // requests that file be loaded in the background WHILE unit i plays —
 // hiding that file's open latency behind unit i's ~1.2-1.5s playback
 // window. See ENABLE_WORD_CLIP_PREFETCH above for the full rationale.
-static bool playChainAtPath(const String& path) {
+//
+// onDownPressed (session 18): optional. When set, DOWN presses during
+// playback fire this callback instead of interrupting the chain — see
+// playChainWordFromRam's doc comment. Default nullptr means DOWN behaves
+// exactly as before (an ordinary interrupt) — used by playNoteTitleChain,
+// where speakNoteTitle()'s existing DOWN-to-skip-to-next-title behavior
+// in buttons.h still relies on DOWN stopping playback. Only
+// playNoteAudioChain (note BODY playback) passes a real callback, so the
+// user can scroll the on-screen text while the body is being read aloud
+// without stopping the audio.
+static bool playChainAtPath(const String& path, void (*onDownPressed)() = nullptr) {
   std::vector<String> lines = readChainLines(path);
   if (lines.empty()) return false;
 
   lastInterruptPin = -1;
   int audioUnitsPlayed = 0;
 
+  // Caches the resolved path for line i, keyed by line index, so a word
+  // resolved during the lookahead scan below is never re-resolved again
+  // when it's actually played one iteration later. Before session 17,
+  // resolveAudioAsset() → bankLookup() was a near-free in-RAM binary
+  // search, so calling it twice per word cost nothing measurable. Since
+  // session 17 moved the bank index to an on-SD binary search (up to ~14
+  // mutex-guarded seek+read calls per lookup), resolving the SAME word
+  // twice doubles real SD I/O for no benefit — this cache removes that
+  // duplication. -1 means "not yet resolved"; "" (empty) is a valid
+  // cached result meaning "no asset found for this word."
+  std::vector<int8_t> resolvedFlag(lines.size(), 0); // 0=unresolved, 1=resolved
+  std::vector<String> resolvedPath(lines.size());
+
+  auto resolveCached = [&](size_t idx) -> const String& {
+    if (!resolvedFlag[idx]) {
+      const String& l = lines[idx];
+      resolvedPath[idx] = (l.startsWith("W:") || l.startsWith("L:")) ? resolveAudioAsset(l.substring(2)) : "";
+      resolvedFlag[idx] = 1;
+    }
+    return resolvedPath[idx];
+  };
+
 #if ENABLE_WORD_CLIP_PREFETCH
   // Give the very first word a head start too, if there's any time before
   // we reach it (there usually isn't much, but it's free to try).
   for (size_t i = 0; i < lines.size(); i++) {
-    String p0 = resolveAudioAsset(
-      (lines[i].startsWith("W:") || lines[i].startsWith("L:")) ? lines[i].substring(2) : "");
-    if (p0.length() > 0) { requestPrefetch(p0); break; }
+    if (!lines[i].startsWith("W:") && !lines[i].startsWith("L:")) continue;
+    const String& p0 = resolveCached(i);
+    if (p0.length() > 0) requestPrefetch(p0);
+    break;
   }
 #endif
+
+  // Precompute, for every line index, whether ANY audio-producing (W:/L:)
+  // line exists after it — one backward pass, O(n), computed once rather
+  // than re-scanned forward from inside the main loop per line. Drives
+  // keepI2SRunning below: the I2S output only needs to be torn down after
+  // the actual LAST audio-producing unit in the chain, not after every
+  // intermediate word (see session 18 pacing fix — boot-log analysis
+  // found a consistent ~148ms of overhead on top of the intended 120ms
+  // inter-word pause, most likely from stopping/restarting the I2S DMA
+  // output on every single word instead of only at real chain/sentence
+  // boundaries).
+  std::vector<bool> moreAudioAfter(lines.size(), false);
+  {
+    bool seenAudioYet = false;
+    for (size_t k = lines.size(); k-- > 0; ) {
+      moreAudioAfter[k] = seenAudioYet;
+      if (lines[k].startsWith("W:") || lines[k].startsWith("L:")) seenAudioYet = true;
+    }
+  }
 
   for (size_t i = 0; i < lines.size(); i++) {
     const String& line = lines[i];
@@ -1318,9 +1503,11 @@ static bool playChainAtPath(const String& path) {
 #if ENABLE_WORD_CLIP_PREFETCH
     // Look past this unit for the next real word/letter and start
     // fetching it now, before we block on playing the current unit.
+    // Uses the same cache — this resolve is the one that will be reused
+    // by playChainUnit() when we reach line j on a later iteration.
     for (size_t j = i + 1; j < lines.size(); j++) {
       if (lines[j].startsWith("W:") || lines[j].startsWith("L:")) {
-        String nextPath = resolveAudioAsset(lines[j].substring(2));
+        const String& nextPath = resolveCached(j);
         if (nextPath.length() > 0) requestPrefetch(nextPath);
         break;
       }
@@ -1329,17 +1516,42 @@ static bool playChainAtPath(const String& path) {
 #endif
 
     bool producedAudio = false;
-    playChainUnit(line, producedAudio);
+    // Pass the (possibly already-resolved) path in directly instead of
+    // letting playChainUnit() re-resolve it from scratch. For SP/SPS
+    // lines, resolvedPath is unused by playChainUnit(), so pass an empty
+    // string explicitly rather than the raw line text — keeps the
+    // contract unambiguous (resolvedPath is always either "a real asset
+    // path" or "nothing", never "some other line's raw text"). Uses a
+    // plain String (not a reference) here deliberately — binding a
+    // ternary's two branches to different-lifetime String& sources
+    // (resolveCached()'s cache-owned reference vs. a fresh temporary) is
+    // the kind of thing that produces a dangling reference; a small copy
+    // is the safe, obviously-correct choice for a per-word-sized string.
+    bool isWordLine = line.startsWith("W:") || line.startsWith("L:");
+    String cachedPath = isWordLine ? resolveCached(i) : String("");
+
+    playChainUnit(line, cachedPath, moreAudioAfter[i], onDownPressed, producedAudio);
     if (producedAudio) audioUnitsPlayed++;
     if (wasBackInterrupt()) break; // stop the whole chain, not just this unit
   }
+
+  // I2S output may still be running if the loop exited early (BACK
+  // interrupt) before reaching a line where moreAudioAfter[i] was false.
+  // Stop unconditionally here as a safety net — cheap if already stopped
+  // (AudioOutputI2S::stop() on an already-stopped output is expected to
+  // be a no-op / safe to call redundantly, consistent with how stop() is
+  // already called defensively elsewhere in this file), and guarantees no
+  // chain ever leaves I2S running into whatever plays next (e.g. the
+  // "end_of_note" phrase immediately after body playback).
+  _i2sOut.stop();
+
   return audioUnitsPlayed > 0;
 }
 
-bool playNoteAudioChain(int index) {
-  return playChainAtPath(noteChainPath(index));
+bool playNoteAudioChain(int index, void (*onDownPressed)()) {
+  return playChainAtPath(noteChainPath(index), onDownPressed);
 }
 
 bool playNoteTitleChain(int index) {
-  return playChainAtPath(noteTitleChainPath(index));
+  return playChainAtPath(noteTitleChainPath(index)); // no callback — DOWN still interrupts title playback, unchanged from before this session
 }

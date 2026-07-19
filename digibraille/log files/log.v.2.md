@@ -473,3 +473,411 @@ The RAM-resident `std::vector<WordBankEntry> _wordBank` from session 15 is **rem
 - Did not add a migration/compatibility shim to auto-detect and convert an old text `.idx` file into the new binary format on-device — per this project's established pattern (chain format changes, bank format itself), format changes are handled via PC-side regeneration, not on-device conversion.
 
 — Sam Claude
+
+## Debug pass on session 17's on-SD bank rework: 2 real bugs fixed, 1 pacing tradeoff flagged (session 18)
+
+**Session start:** 2026-07-19 00:?? UTC (exact turn-start not independently captured; using tool-logged first timestamp of this session, 01:07 UTC, as the closest reliable anchor — will capture turn-start more precisely going forward) **Session end:** 2026-07-19 01:07 UTC **Logged by:** Sam Claude
+
+Requested: a full debug pass over session 17's rework specifically for miscalculated logic, probable fail points, unnatural sound pacing, interrupt correctness, priority ordering, memory management, and performance. Went through `mp3_player.cpp` systematically rather than asserting confidence — findings below, in the order checked.
+
+### Checked and confirmed correct (no changes needed)
+
+- **Deadlock risk in the new mutex-guarded `bankLookup()`:** traced every call site (`resolveAudioAsset`, `playBankPathDirect`, `isValidMp3`, `loadMp3ToRam`). The one case that looked risky — `prefetchTaskFn` holds `_prefetchMutex` and calls `loadMp3ToRam()`, which internally calls `bankLookup()`, which takes the *same* mutex again — is exactly the scenario the mutex being `Recursive` (`xSemaphoreCreateRecursiveMutex`, `TakeRecursive`/`GiveRecursive` used consistently everywhere, confirmed via grep — no plain non-recursive `xSemaphoreTake`/`Give` anywhere in the file) is designed to handle safely. Correct as shipped.
+- **`playMP3()`'s `lastInterruptPin` reset ordering:** confirmed the reset (`lastInterruptPin = -1`) happens before the branch into `playBankPathDirect()` for `"bank:"` paths, so the bank path always starts from a clean interrupt state. No stale-interrupt bug here.
+- **`readBankRecord()`'s byte-offset math:** manually verified against `BANK_RECORD_SIZE=32`/`BANK_WORD_MAX_LEN=23`: word field `[0,24)`, offset `[24,28)`, length `[28,32)` — matches the packer's `struct.Struct("<24sII")` layout exactly, both little-endian (native to the ESP32's Xtensa core, so no byte-swap needed). No off-by-one.
+- **Binary search bounds logic:** re-implemented the exact `lo/hi/mid` loop in Python and ran it against sorted word lists including adjacent-prefix cases (`"mid"` vs `"middle"`) and edge cases (empty list, single element, not-found). All passed. No off-by-one, no infinite-loop risk.
+- **`_audioSrc` pointer lifecycle** (alloc/delete pairing across `playBankPathDirect`, `playMP3`, `playChainWordFromRam`): pre-existing pattern, not touched this session, confirmed still consistent — every allocation is preceded by a delete-if-present guard and followed by a delete-after-use. No leak, no double-free introduced or pre-existing.
+- **`loadWordBank()`'s malformed-file guard:** a 0-byte or non-32-byte-multiple `.bidx` is explicitly rejected with a clear log line rather than silently proceeding with `_wordBankEntryCount=0` — cleaner failure mode than relying solely on `bankLookup()`'s downstream zero-count guard.
+
+### Bug found and fixed: redundant double SD lookup per chain word
+
+`playChainAtPath()`'s lookahead scan calls `resolveAudioAsset()` on the *next* word to kick off its background prefetch — then, one loop iteration later, `playChainUnit()` calls `resolveAudioAsset()` on that *same* word again to actually play it. Before session 17 this cost nothing (pure in-RAM `std::lower_bound`, microseconds). After session 17 moved the bank index to an on-SD binary search (~14 mutex-guarded seek+read calls per lookup), this pre-existing double-call pattern now means **every chain word's bank lookup runs twice** — a real, avoidable doubling of new SD I/O that didn't matter before this session's change but does now.
+
+**Fix:** added a per-line resolve cache (`resolvedFlag`/`resolvedPath` vectors, sized once to `lines.size()`) inside `playChainAtPath()`, via a `resolveCached(idx)` lambda. The lookahead scan populates the cache; `playChainUnit()` now takes the already-resolved path as a parameter instead of re-resolving it. Each word is now looked up exactly once per chain playback, regardless of how many times its resolved path is referenced.
+
+- Changed `playChainUnit()`'s signature from `(line, producedAudio)` to `(line, resolvedPath, producedAudio)` — it no longer calls `resolveAudioAsset()` itself.
+- Verified only one call site existed for the old signature; updated cleanly, no orphaned old-signature callers left.
+
+### Bug found and fixed during the cache implementation itself (caught before shipping, not a separate report)
+
+While writing the fix above, an initial version used a ternary (`cond ? resolveCached(i) : line`) to pick between the cached-lookup reference and a fallback for non-word lines — binding a `const String&` ternary's two branches to two different-lifetime sources (`resolveCached()`'s vector-owned reference vs. the loop's `line` reference) is a real dangling-reference hazard pattern in C++, not just a style nit. Caught in review before finalizing; replaced with a plain `String cachedPath = isWordLine ? resolveCached(i) : String("");` — a small value copy, sidestepping the lifetime question entirely rather than trying to make the reference version provably safe. Also fixed a broken comma-operator expression in `playChainUnit()`'s non-prefetch (`#else`) branch left over from an editing mistake (`playMP3()` returns `void`; the original attempted `bool ok = playMP3(...), true;` doesn't do what it looks like it does) — corrected to match the pre-existing `playResolvedAsset()` semantics (path existed and was handed to `playMP3()` → treat as success, since `playMP3` has no return value to check).
+
+### Flagged, not fixed: lookahead resolve is no longer free, so less latency gets hidden behind playback
+
+This is a real pacing tradeoff, not a bug, and worth stating plainly rather than leaving implicit. The lookahead scan's `resolveAudioAsset()` call for the *next* word runs **synchronously on the foreground task**, before `requestPrefetch()` can even be called — you need the resolved offset/length before you can ask the background task to fetch those bytes. Before session 17 this resolve step was near-instant, so effectively the *entire* ~1.2–1.5s playback window of the current word was available to hide the *next* word's file-open latency behind. After session 17, the resolve step itself now costs real SD time (up to ~14 small seek+reads), which happens **before** the hide-behind-playback window starts, shrinking it by however long the resolve takes.
+
+Not benchmarked this session — no hard numbers for a single 32-byte `seek()+read()`'s real latency on this specific SD card. Even at a conservative 5–20ms each, 14 of them (worst-case binary search depth) could add on the order of 70–280ms of new, previously-nonexistent latency ahead of each word's prefetch request. This is very unlikely to cause an audible gap on its own (the background task still has the remainder of the ~1.2–1.5s window, and the existing 8-second timeout / direct-load fallback in `playChainWordFromRam` already handles a prefetch that doesn't finish in time gracefully — same safety net as before, unchanged) — but it is a real, quantifiable reduction in how much latency gets successfully hidden compared to the pure-RAM version, and should be confirmed against a real boot log's per-word timing rather than assumed away.
+
+### Not checked this session (scope boundary, not an oversight)
+
+- No hardware timing was gathered — everything above is static code review, not a live boot/profile. The "flagged, not fixed" item specifically needs a real measurement to move from "theoretical tradeoff" to "confirmed non-issue" or "needs further optimization."
+- Did not re-audit files outside `mp3_player.cpp`/`mp3_player.h` (e.g. `braille.h`, `buttons.h`, `display.h`) — session 17's change was scoped to the bank/index mechanism only, and this debug pass followed that same scope rather than re-reviewing the whole project.
+- Did not re-run the packer's self-test this session (already run and passing in session 17) — no packer-side code changed this session, only the device-side chain-playback caching.
+
+— Sam Claude
+
+## Pacing fix (I2S restart removed between chain words) + DOWN scrolls without stopping note-body audio (session 19)
+
+**Session start:** 2026-07-19 07:?? UTC (turn-start not independently captured; using first tool-logged timestamp, 08:10 UTC, as anchor) **Session end:** 2026-07-19 08:10 UTC **Logged by:** Sam Claude
+
+Two requests from a real post-fix boot log: (1) word-to-word pacing was still a "few milliseconds" off natural speech and should be tightened further; (2) DOWN did nothing useful while a note body was being read aloud — user wants it to scroll the screen in sync, without stopping the audio.
+
+### Pacing: measured, diagnosed, and fixed a real ~148ms/word overhead
+
+Parsed the provided boot log's `AUDIO MP3 START/DONE (RAM)` timestamps directly rather than estimating. Clean mid-sentence word-to-word gaps (excluding UI-transition outliers): `blind→girl` 268ms, `girl→from` 270ms, `from→z` 265ms — remarkably consistent (within 5ms of each other), against an intended `kSpacePauseMs` of only 120ms. That consistency ruled out variable SD/lookup jitter as the cause and pointed at fixed per-word setup/teardown cost instead.
+
+**Root cause identified:** `playChainWordFromRam()` called `_i2sOut.stop()` unconditionally at the end of **every single word**, and the next word's `_mp3.begin()` implicitly re-initialized the I2S output from scratch. Stopping/restarting an I2S DMA output has real hardware settling time; this was happening on every word boundary in a chain, not just at genuine sentence/chain boundaries.
+
+**Fix (`mp3_player.cpp`):**
+
+- Added `keepI2SRunning` parameter to `playChainWordFromRam()`. The I2S output (`_i2sOut`) is now only stopped after the chain's actual LAST audio-producing word (or on interrupt) — not after every intermediate word. The MP3 *decoder* (`_mp3`) still gets a clean `stop()`+`delay(15)` between clips as before (unchanged, still required — it's a stateful generator being handed a new source each time); only the underlying I2S peripheral stays running across consecutive words now.
+- `playChainAtPath()` precomputes a `moreAudioAfter[]` table (one O(n) backward pass, done once — not re-scanned per line) so each word knows in advance whether it's the chain's last audio-producing unit.
+- Added a safety-net unconditional `_i2sOut.stop()` at the true end of `playChainAtPath()`, covering the case where playback is interrupted mid-chain before naturally reaching the last word.
+- **Flagged explicitly, not silently assumed safe:** this trades a proven timing cost for an unverified assumption about the ESP8266Audio library — specifically, that `AudioGeneratorMP3::begin()` against a still-running `AudioOutputI2S` correctly resets decoder state the same way it does against a freshly-started one. This library's internals aren't available to inspect in this environment (same caveat already on record from earlier sessions re: `AudioFileSourceRAM`). **This needs a real listen-test on hardware** — worst case if the assumption is wrong is an audible click/pop at word boundaries, not a crash or silence, but that should be confirmed by ear, not assumed from log timing alone.
+
+### DOWN now scrolls the note-view screen during body playback, without stopping audio
+
+Traced why DOWN previously did nothing during body playback: `speakNoteBody()` → `playNoteAudioChain()` → `playChainAtPath()` blocks `loop()` synchronously for the whole chain; `handleViewNote()`'s existing DOWN-scroll handler (already written, doing exactly what was wanted) never got a turn to run until the chain finished or was interrupted. DOWN was also one of the five buttons in the shared `kInterruptPins` list, so pressing it mid-word interrupted that one clip's playback but — since only BACK actually stops the whole chain (`wasBackInterrupt()`) — the chain just continued to the next word anyway, meaning DOWN accomplished nothing visible.
+
+Confirmed the desired behavior directly with the user before implementing (screen scrolls manually on DOWN, audio keeps playing uninterrupted — not auto-tracking word position, not stop-then-resume).
+
+**Fix, scoped carefully so DOWN's behavior elsewhere is unaffected** (e.g. `speakNoteTitle()`'s existing DOWN-to-skip-to-next-title chaining, which still needs DOWN to interrupt):
+
+- **`mp3_player.cpp`:** added `kChainInterruptPins` (BACK/SELECT/AI-SAVE/DELETE — everything except DOWN), used only during chain playback that opts in via a new `onDownPressed` callback parameter. Generalized `debouncedInterruptPin()`/`resetInterruptDebounce()` to accept an explicit pin list/count instead of being hardcoded to the original 5-button list, so both interrupt sets share the same debounce logic without duplicating it. Added an independent, separately-debounced DOWN poll (`downPressedThisPoll()`/`resetDownPoll()`) that fires the callback once per physical press (not repeatedly while held) — deliberately separate state from the interrupt-list debounce timers so the two can't interfere with each other.
+- `playChainWordFromRam()`, `playChainUnit()`, and `playChainAtPath()` all gained an `onDownPressed` parameter (function-pointer, matching this codebase's existing callback style), threaded through with a `nullptr` default at every layer — so every other caller/behavior is unchanged unless a real callback is supplied.
+- `playNoteAudioChain()`'s public signature (`mp3_player.h`) gained the same optional parameter, defaulted to `nullptr`. `playNoteTitleChain()` is untouched — title playback still uses DOWN as an ordinary interrupt.
+- **`buttons.h`:** `speakNoteBody()` now passes a new `onDownDuringNoteBody()` callback to `playNoteAudioChain()`. That callback reuses the exact scroll logic `handleViewNote()`'s own DOWN handler already had (`noteScrollOffset++`, `drawViewNote()`) — this session didn't invent new scroll behavior, it just made the existing, already-correct logic reachable during playback, which it never was before.
+
+### Not done this session
+
+- No hardware verification of either change — the pacing fix's core hypothesis (I2S stop/restart is the dominant per-word cost) is well-supported by the log's timing consistency but not independently confirmed by isolating that one call; the DOWN-scroll fix hasn't been pressed on real hardware. Both need a real boot + listen/interact test before being considered fully confirmed, especially the I2S-continuity assumption flagged above.
+- Did not implement word-level "auto-track the spoken word" scrolling — user explicitly chose the simpler manual-scroll-during-playback behavior over karaoke-style auto-advance, so that larger `display.h`-touching feature was intentionally not built.
+- Did not re-run the full session-18 static debug checklist (deadlock/lifetime/etc.) against this session's new code — recommend a follow-up pass given how much of `mp3_player.cpp`'s chain-playback machinery changed again this session.
+
+— Sam Claude#pragma once
+#include <Arduino.h>
+#include <LittleFS.h>
+#include "globals.h"
+#include "sam_tts.h"
+#include "mp3_player.h"
+#include "offline_grammar.h"
+#include "storage.h"
+#include "display.h"
+
+// draw functions declared in display.h — included via globals chain
+// isValidMp3 / playMP3 declared in mp3_player.h (included above) — no
+// redeclaration here; a stale duplicate previously drifted out of sync
+// with mp3_player.h's real signature and would no longer compile.
+//
+// brailleResetBuffer() / brailleResetGestureState() / brailleClearCell()
+// are defined in braille.h. This file doesn't #include braille.h directly
+// — it relies on the .ino's include order putting braille.h before this
+// file, same as the pre-existing (unchanged) brailleClearCell() call
+// further down. If buttons.h is ever compiled/included on its own or before
+// braille.h, these calls won't resolve — worth adding
+// #include "braille.h" here explicitly if that ordering isn't guaranteed.
+
+// ─── SPEAK A NOTE TITLE, WITH DOWN-TO-SKIP CHAINING ───────────
+// Replaces the "resolve title mp3 or fall back to SAM + queue" block that
+// used to be copy-pasted at every call site (handleMainMenu, handleReadNotes
+// x2, handleViewNote, handleDeleteConfirm x2).
+//
+// Interrupt-aware: playMP3() blocks loop() while a clip plays, so without
+// this, holding DOWN through a title cut the clip but nothing advanced —
+// control returned to a caller that had already finished its "if" block.
+// Here, if the clip was cut specifically by DOWN, we advance the index
+// ourselves and immediately speak the next title, chaining for as long as
+// DOWN keeps interrupting. Any other interrupt (BACK, SELECT, etc.) just
+// stops, exactly as before, and lets the normal handler loop pick it up.
+static void speakNoteTitle(int index) {
+  while (true) {
+    String title = getNoteTitle(index);
+    // A title "Grace" reads from recorded assets via its prebuilt chain
+    // (whole-word "grace.mp3" if present, else letter-by-letter) — no
+    // reliance on a never-generated note{N}_title.mp3. Build it on the fly
+    // if a boot migration somehow hasn't produced one yet, then play it.
+    bool played = false;
+    if (noteTitleChainExists(index) || buildNoteTitleChain(index, title)) {
+      played = playNoteTitleChain(index);
+      if (!played) {
+        // Chain existed but produced no audio at all — most likely a
+        // stale/empty/corrupt chain left over from before the asset
+        // library or chain format changed. Force one rebuild and retry
+        // instead of silently doing nothing forever.
+        Serial.println(F("[TITLE] Chain produced no audio - rebuilding once"));
+        buildNoteTitleChain(index, title);
+        played = playNoteTitleChain(index);
+      }
+    }
+    if (!played) {
+      // Last-resort fallback if storage is unwritable or rebuild still
+      // fails: live asset/SAM spell.
+      speakText(title, "");
+      lastInterruptPin = -1; // speakText's SAM/asset path isn't interrupt-tracked like playMP3
+    }
+
+    if (lastInterruptPin != BTN_DOWN) break; // finished naturally, or cut by something else
+    if (noteCount <= 0) break;
+
+    index = (index + 1) % noteCount;
+    selectedNote = index;
+    drawReadNotes();
+    logTestEvent(4, "navigation-down-chained", String("selected=") + String(selectedNote));
+  }
+}
+
+void enterMainMenu(bool speakHighlighted) {
+  currentState = STATE_MAIN_MENU;
+  drawMainMenu();
+  if (sdWarningPending) {
+    logTs("SD", "Warning user at main menu; notes are using LittleFS fallback");
+    drawSdWarning();
+    speakPhrase("sd_missing");
+    drawMainMenu();
+  }
+  if (speakHighlighted) {
+    if (menuIndex == 0) speakPhrase("new_note");
+    else if (menuIndex == 1) speakPhrase("read_notes");
+    else speakPhrase("language");
+  }
+}
+
+void handleLangSelect() {
+  unsigned long now = millis();
+  if (now - lastDebounce < DEBOUNCE_MS) return;
+
+  if (buttonPressed(BTN_DOWN)) {
+    lastDebounce = now;
+    langChoiceIndex = (langChoiceIndex + 1) % 2;
+    Serial.print(F("[LANG] Highlight "));
+    Serial.println(langChoiceIndex == 0 ? "English" : "Chichewa");
+    drawLangSelect();
+    speakPhrase(langChoiceIndex == 0 ? "english" : "chichewa");
+    return;
+  }
+
+  if (buttonPressed(BTN_SELECT)) {
+    lastDebounce = now;
+    langEnglish = (langChoiceIndex == 0);
+    saveConfig();
+    // Index and bank are both built per-language (/words/en vs /words/ch).
+    // Bank is tried FIRST and, if it loads, the slow full-folder index scan
+    // is skipped entirely — see log session 14: with a large word library
+    // (thousands of clips), that scan measured a clearly quadratic growth
+    // in cost (each successive 1000 files took 3x+ longer than the last),
+    // projecting to roughly four hours for ~9,629 files. Since
+    // resolveAudioAsset() checks the bank before ever touching the index,
+    // running the slow scan when the bank already covers this language was
+    // pure wasted time — and doing it HERE, mid-use while the UI is
+    // blocked waiting on this call, would be far worse than at boot.
+    bool bankLoaded = loadWordBank();
+    if (!bankLoaded) {
+      Serial.println(F("[INDEX] No word bank for this language - rebuilding per-file index"));
+      buildWordAssetIndex();
+    } else {
+      Serial.println(F("[INDEX] Word bank loaded - skipping slow per-file directory scan"));
+    }
+    Serial.print(F("[LANG] Saved "));
+    Serial.println(langEnglish ? "English" : "Chichewa");
+    speakPhrase(langEnglish ? "english" : "chichewa");
+    menuIndex = 0;
+    enterMainMenu();
+  }
+}
+void handleMainMenu() {
+  if (millis()-lastDebounce<DEBOUNCE_MS) return;
+  if (buttonPressed(BTN_DOWN)) {
+    lastDebounce=millis(); menuIndex=(menuIndex+1)%MENU_COUNT; drawMainMenu();
+    if (menuIndex==0) speakPhrase("new_note");
+    else if (menuIndex==1) speakPhrase("read_notes");
+    else speakPhrase("language");
+  } else if (buttonPressed(BTN_SELECT)) {
+    lastDebounce=millis();
+    if (menuIndex==0) {
+      brailleResetBuffer();
+      pendingTitle = "";
+      brailleResetGestureState();
+      lastAutosave=millis();
+      lastDebounce=millis();
+      if (restoreDraft()) {
+        brailleClearCell();
+        drawBraillePad(pendingTitle.length() ? "Note:" : "Title:");
+        speakText("Draft restored.", "");
+        if (histLen > 0) speakText(brailleBufferString(), "");
+        return;
+      }
+      currentState=STATE_WRITE_TITLE;
+      Serial.println(F("[STATE] Entering WRITE_TITLE"));
+      drawBraillePad("Title:"); speakPhrase("write_title");
+    } else if (menuIndex==1) {
+      loadNotes(); selectedNote=0;
+      lastDebounce=millis();
+      currentState=STATE_READ_NOTES;
+      Serial.print(F("[STATE] Entering READ_NOTES — notes: ")); Serial.println(noteCount);
+      drawReadNotes();
+      if (noteCount==0) speakPhrase("no_notes");
+      else speakNoteTitle(0);
+    } else {
+      langChoiceIndex = langEnglish ? 0 : 1;
+      currentState=STATE_LANG_SELECT; drawLangSelect();
+      lastDebounce=millis();
+      speakPhrase("choose_language");
+      speakPhrase(langChoiceIndex == 0 ? "english" : "chichewa");
+      speakPhrase("lang_instructions");
+    }
+  }
+}
+
+// Callback passed to playNoteAudioChain() (see mp3_player.h/.cpp session
+// 18 change) — fires once per physical DOWN press WHILE the note body is
+// being read aloud, WITHOUT stopping playback. Reuses the exact same
+// scroll logic handleViewNote()'s own DOWN handler already had (advance
+// noteScrollOffset, redraw) — this just makes it reachable during
+// playback too, which it never was before (loop() was blocked inside the
+// audio call the whole time DOWN normally would have been handled).
+// Must be a plain function (not a lambda with captures) since it's
+// invoked through a C-style function pointer, matching how the rest of
+// this codebase already passes callbacks across the mp3_player.cpp
+// boundary — relies on selectedNote/noteScrollOffset being globals
+// (globals.h), same as handleViewNote() itself does.
+static void onDownDuringNoteBody() {
+  noteScrollOffset++;
+  drawViewNote(selectedNote);
+  logTestEvent(4, "view-scroll-down-during-playback", String("offset=") + String(noteScrollOffset));
+}
+
+// Plays note `index`'s body via its pre-built audio chain (see
+// buildNoteAudioChain/playNoteAudioChain in mp3_player.cpp). If no chain
+// exists yet (an older note saved before this feature existed), falls
+// back to speaking just the title so the user isn't met with silence.
+//
+// BACK-aware: if BACK cuts the chain short, this returns immediately
+// afterward WITHOUT speaking "end_of_note" — the caller checks
+// lastInterruptPin itself to decide whether to also navigate back a
+// screen right away, same as any other BACK-interrupted action.
+//
+// DOWN-aware (session 18): passes onDownDuringNoteBody() to
+// playNoteAudioChain() so DOWN scrolls the screen in sync while the body
+// keeps playing, instead of doing nothing (previously DOWN was one of the
+// buttons that could interrupt a clip, but interrupting mid-word and then
+// letting the chain continue anyway meant DOWN visibly did nothing useful
+// during body playback — this replaces that dead behavior with real
+// scrolling). Only body playback gets this — title playback (via
+// speakNoteTitle() above) is unchanged and still uses DOWN to skip to the
+// next note's title, since that's a different, already-useful behavior.
+static void speakNoteBody(int index) {
+  speakPhrase("reading_note");
+  if (noteAudioChainExists(index)) {
+    playNoteAudioChain(index, onDownDuringNoteBody);
+  } else {
+    Serial.println(F("[NOTE] No chain built yet — reading title only"));
+    speakText(getNoteTitle(index), "");
+  }
+  if (lastInterruptPin != BTN_BACK) speakPhrase("end_of_note");
+}
+
+void handleReadNotes() {
+  if (millis()-lastDebounce<DEBOUNCE_MS) return;
+  if (buttonPressed(BTN_DOWN)) {
+    unsigned long actionStart = millis();
+    lastDebounce=millis();
+    if (noteCount>0) {
+      selectedNote=(selectedNote+1)%noteCount; drawReadNotes();
+      logTestEvent(4, "navigation-down", String("selected=") + String(selectedNote));
+      speakNoteTitle(selectedNote);
+      logTestEvent(4, "navigation-feedback-complete", String("duration_ms=") + String(millis() - actionStart));
+    }
+  } else if (buttonPressed(BTN_SELECT)) {
+    lastDebounce=millis();
+    if (noteCount>0) {
+      noteScrollOffset=0; currentState=STATE_VIEW_NOTE; drawViewNote(selectedNote);
+      speakNoteBody(selectedNote);
+    }
+  } else if (buttonPressed(BTN_REREAD)) {
+    lastDebounce=millis();
+    if (noteCount>0) speakNoteTitle(selectedNote);
+  } else if (buttonPressed(BTN_DELETE)) {
+    lastDebounce=millis();
+    if (noteCount>0) { currentState=STATE_DELETE_CONFIRM; drawDeleteConfirm(); speakText("delete "+getNoteTitle(selectedNote)+"?", ""); }
+  } else if (buttonPressed(BTN_BACK)) {
+    lastDebounce=millis(); menuIndex=0; enterMainMenu();
+  }
+}
+
+void handleViewNote() {
+  if (millis()-lastDebounce<DEBOUNCE_MS) return;
+  if (buttonPressed(BTN_DOWN)) {
+    unsigned long actionStart = millis();
+    lastDebounce=millis(); noteScrollOffset++; drawViewNote(selectedNote);
+    logTestEvent(4, "view-scroll-down", String("offset=") + String(noteScrollOffset));
+    // The chain already reads the whole note aloud once on entry, so DOWN
+    // here only scrolls the on-screen text — no per-line audio needed or
+    // spoken twice.
+    logTestEvent(4, "view-scroll-feedback-complete", String("duration_ms=") + String(millis() - actionStart));
+  } else if (buttonPressed(BTN_REREAD)) {
+    lastDebounce=millis();
+    speakNoteBody(selectedNote);
+    if (lastInterruptPin == BTN_BACK) {
+      // BACK cut the re-read short — honor BACK's real function here too
+      // (go back to the note list), not just silence the audio.
+      noteScrollOffset=0; currentState=STATE_READ_NOTES; drawReadNotes();
+      speakNoteTitle(selectedNote);
+    }
+  } else if (buttonPressed(BTN_AISAVE)) {
+    lastDebounce=millis();
+    if (aiBusy) { speakPhrase("loading"); return; }
+    aiBusy=true; speakPhrase("ai"); speakPhrase("loading"); drawAILoading();
+    String improved=improveNoteOffline(getNoteBody(selectedNote)); aiBusy=false;
+    if (improved.length()>0) {
+      aiImprovedNote=improved; currentState=STATE_AI_PREVIEW; drawAIPreview(improved);
+      speakPhrase("ai_ready"); speakText(improved, "");
+    } else { speakPhrase("ai_failed"); speakText("Keep writing or try again.", ""); drawToast("Grammar failed!"); drawViewNote(selectedNote); }
+  } else if (buttonPressed(BTN_DELETE)) {
+    lastDebounce=millis(); currentState=STATE_DELETE_CONFIRM; drawDeleteConfirm();
+    speakText("delete "+getNoteTitle(selectedNote)+"?", "");
+  } else if (buttonPressed(BTN_BACK)) {
+    lastDebounce=millis(); noteScrollOffset=0; currentState=STATE_READ_NOTES; drawReadNotes();
+    speakNoteTitle(selectedNote);
+  }
+}
+
+void handleAIPreview() {
+  if (millis()-lastDebounce<DEBOUNCE_MS) return;
+  if (buttonPressed(BTN_REREAD)) { lastDebounce=millis(); speakText(aiImprovedNote, ""); }
+  else if (buttonPressed(BTN_SELECT)) {
+    lastDebounce=millis();
+    String fullNote=getNoteTitle(selectedNote)+"n"+aiImprovedNote;
+    File f=openNoteFile(selectedNote,FILE_WRITE); if(f){f.print(fullNote);f.close();}
+    noteList[selectedNote]=fullNote; loadNotes();
+    removeNoteAudioFiles(selectedNote);
+    buildNoteAudioChain(selectedNote, aiImprovedNote);
+    speakPhrase("note_saved"); drawToast("Updated!");
+    noteScrollOffset=0; currentState=STATE_VIEW_NOTE; drawViewNote(selectedNote);
+  } else if (buttonPressed(BTN_BACK)) {
+    lastDebounce=millis(); aiImprovedNote=""; noteScrollOffset=0;
+    currentState=STATE_VIEW_NOTE; drawViewNote(selectedNote); speakPhrase("kept");
+  } else if (buttonPressed(BTN_DELETE)) {
+    lastDebounce=millis(); aiImprovedNote=""; noteScrollOffset=0;
+    currentState=STATE_VIEW_NOTE; drawViewNote(selectedNote); speakPhrase("cancelled");
+  }
+}
+
+void handleDeleteConfirm() {
+  if (millis()-lastDebounce<DEBOUNCE_MS) return;
+  if (buttonPressed(BTN_SELECT)) {
+    lastDebounce=millis();
+    for (int i=selectedNote;i<noteCount-1;i++) noteList[i]=noteList[i+1];
+    noteCount--;
+    for (int i=0;i<MAX_NOTES;i++) if (noteExists(i)) removeNoteFile(i);
+    for (int i=0;i<MAX_NOTES;i++) removeNoteAudioFiles(i);
+    for (int i=0;i<noteCount;i++) { File f=openNoteFile(i,FILE_WRITE); if(f){f.print(noteList[i]);f.close();} }
+    if (selectedNote>=noteCount&&selectedNote>0) selectedNote--;
+    speakPhrase("deleted"); drawToast("Deleted!"); currentState=STATE_READ_NOTES; drawReadNotes();
+    if (noteCount==0) speakPhrase("no_notes");
+    else speakNoteTitle(selectedNote);
+  } else if (buttonPressed(BTN_BACK)) {
+    lastDebounce=millis(); speakPhrase("cancelled");
+    currentState=STATE_READ_NOTES; drawReadNotes();
+    if (noteCount>0) speakNoteTitle(selectedNote);
+  }
+}
